@@ -8,6 +8,25 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+// ---- Debug HUD (put near your includes) ----
+#include <sstream>
+#include <iomanip>
+
+static std::string mat4ToString(const glm::mat4& M)
+{
+    // GLM is column-major: M[col][row]
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(3);
+    for (int r = 0; r < 4; ++r) {
+        ss << "| ";
+        for (int c = 0; c < 4; ++c) {
+            ss << std::setw(8) << M[c][r] << " ";
+        }
+        ss << "|\n";
+    }
+    return ss.str();
+}
+
 using Vec3 = glm::vec3;
 using Vec4 = glm::vec4;
 using Mat4 = glm::mat4;
@@ -186,6 +205,19 @@ int main() {
 
     bool printed = false;
 
+    // ---- In main(), after creating the window ----
+    sf::Font debugFont;
+    if (!debugFont.openFromFile("roboto.ttf")) {   // pick any .ttf you have
+        std::cerr << "Failed to load font\n";
+    }
+
+    sf::Text hud(debugFont);
+    hud.setCharacterSize(14);
+    hud.setPosition({10.f, 10.f});
+    hud.setFillColor(sf::Color::White);
+
+    bool showHud = true;
+
     while (window.isOpen()) {
         int count = 0;
         const float dt = clock.restart().asSeconds();
@@ -196,6 +228,8 @@ int main() {
             {
                 if (keyPressed->scancode == sf::Keyboard::Scancode::Escape)
                     window.close();
+                if (keyPressed->scancode == sf::Keyboard::Scancode::H)
+                    showHud = !showHud;
             }
         }
 
@@ -328,29 +362,21 @@ int main() {
                 faces[base + k].color    = col;
             }
         }
-        // Side Note:
-        // Short explanation Painter Algo, for each of each item in Faces (sorted by furthest away),
-        // quad = the furthest face (item.faceIndex) instead of accessing with 0 or first in array
-        // which isnt ordered, then, get vertex count to see how many vertices have u already
-        // appended so that u allocate more memory to the array if there are more ex:
-        // base = 6 (6 already in array) so u do faces.resize(the old 6 + the new 6 in SIZE only)
-        // like saying if array already has vertices find out how many and keep that same size but add
-        // another 6 in size so that u can append the future new items inside then set the already
-        // known pattern to connect 2 different triangles knowing 4 vertices that connect to eachother
-        // and declare it ({0,1,2, 0,2,3}) iterate for the 6 vertices or points u need to connect together
-        // for creating 2 different triangles, set vidx = quad (current face that was sorted
-        // to be the furthest) quad[tripattern[]<-access first point to connect] => quad[tripattern[k]]
-        // so once u know the first to connect ex: {4,3,1,2} each index representing 1 Idx from which
-        // they are all connected together to form the square but quad is just indices that are represented
-        // and used inside cubeVerts to access the actual vertex of 3 dimensions, project it to ScreenH()
-        // then grabs that specific array in 3d that is the first connection location for the first point in
-        // the triangle, then, ScreenH() internally does all of the process of projecting via homogenous representation,
-        // converting the 3d into 4d etc etc. Do the same for all the 6 faces that were sorted.
+
+        if (showHud) {
+            std::ostringstream ss;
+            ss << "ws: " << ws << "  yaw: " << yaw << "  pitch: " << pitch << "  fov: " << fovDeg << "\n\n";
+            ss << "MV:\n" << mat4ToString(MV_cube) << "\n";
+            ss << "P:\n"  << mat4ToString(P) << "\n";
+            hud.setString(ss.str());    // update what gets drawn  [oai_citation:3‡SFML](https://www.sfml-dev.org/documentation/2.6.2/classsf_1_1Text.php)
+        }
 
         window.clear();
+        if (showHud)
+            window.draw(hud);           // draw text on top  [oai_citation:4‡SFML](https://www.sfml-dev.org/documentation/2.6.2/classsf_1_1Text.php)
         window.draw(faces);
         // window.draw(face);
-        // window.draw(wire);
+        window.draw(wire);
         window.draw(vecLines);
         window.draw(tips);
         window.display();
