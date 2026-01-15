@@ -145,6 +145,15 @@ int main() {
         { 0.5f, -0.5f,  zFar }, {-0.5f, -0.5f,  zFar }
     }};
 
+    static constexpr std::array<std::array<int,4>, 6> cubeFaces = {{
+        {{0,1,2,3}}, // near
+        {{4,5,6,7}}, // far
+        {{0,1,5,4}}, // top
+        {{3,2,6,7}}, // bottom
+        {{1,2,6,5}}, // right
+        {{0,3,7,4}}  // left
+    }};
+
     constexpr std::array<std::pair<int,int>, 12> cubeEdges = {{
         {0,1}, {1,2}, {2,3}, {3,0},
         {4,5}, {5,6}, {6,7}, {7,4},
@@ -272,38 +281,76 @@ int main() {
             std::cout << "Computed b in u-basis ~ (" << b.x << "," << b.y << "," << b.z << ")\n";
         }
 
+        struct FaceDraw {
+            int faceIndex;
+            float avgZ; // view-space z
+        };
 
+        std::vector<FaceDraw> order;
+        order.reserve(6);
 
-        sf::VertexArray face(sf::PrimitiveType::Triangles);
-        face.resize(6);
-        //                               0 1 2
-        // •	Triangle 1: (q0, q1, q2) 0 1 2
-        // •	Triangle 2: (q0, q2, q3) 0 1+1 2+1
-        for (std::size_t j = 0; j < 2; ++j) {
-            for (std::size_t e = 0; e < 3; ++e) {
-                size_t idx = e == 0 ? e : e + j;
-                sf::Vector2f p = toScreenH(cubeVerts[idx], P, MV_cube, kWindowW, kWindowH);
-                face[count].position = p;
-                count++;
+        for (int f = 0; f < 6; ++f) {
+            const auto& quad = cubeFaces[f];
+
+            float zsum = 0.f;
+            for (int k = 0; k < 4; ++k) {
+                int vidx = quad[k];
+                Vec4 vView = MV_cube * Vec4(cubeVerts[vidx], 1.f);
+                // from model to view without projection by P for each vertice in the current face.
+                zsum += vView.z;
             }
+            order.push_back({f, zsum / 4.f});
+            // Standard way of appending ot end of array
         }
 
-        // sf::Vector2f p0 = toScreenH(cubeVerts[0], P, MV_cube, kWindowW, kWindowH);
-        // sf::Vector2f p1 = toScreenH(cubeVerts[1], P, MV_cube, kWindowW, kWindowH);
-        // sf::Vector2f p2 = toScreenH(cubeVerts[2], P, MV_cube, kWindowW, kWindowH);
-        // sf::Vector2f p3 = toScreenH(cubeVerts[3], P, MV_cube, kWindowW, kWindowH);
-        //
-        // // triangle (0,1,2)
-        // face[0].position = p0; face[1].position = p1; face[2].position = p2;
-        // // triangle (0,2,3)
-        // face[3].position = p0; face[4].position = p2; face[5].position = p3;
+        // Camera looks down -Z in OpenGL convention, so "farther" tends to be MORE negative z.
+        // Draw far first => sort ascending by z (more negative first).
+        std::ranges::sort(order,
+                          [](const FaceDraw& a, const FaceDraw& b){ return a.avgZ < b.avgZ; }); // Sort in acsendig order.
+                            // Lambda used here the same as when
+                            // one wants to declare function inside the int main()
 
-        // flat color (same on all vertices)
-        for (int i = 0; i < 6; ++i) face[i].color = sf::Color(80, 120, 255);
+        sf::VertexArray faces(sf::PrimitiveType::Triangles);
+
+        for (auto item : order) {
+            const auto& quad = cubeFaces[item.faceIndex];
+
+            sf::Color col = sf::Color(80 + item.faceIndex*20, 140 + item.faceIndex*20, 220);
+
+            std::size_t base = faces.getVertexCount();
+            faces.resize(base + 6);
+
+            static constexpr int triPattern[6] = {0,1,2, 0,2,3};
+            for (int k = 0; k < 6; ++k) {
+                int vidx = quad[triPattern[k]];
+                sf::Vector2f p = toScreenH(cubeVerts[vidx], P, MV_cube, kWindowW, kWindowH);
+                faces[base + k].position = p;
+                faces[base + k].color    = col;
+            }
+        }
+        // Side Note:
+        // Short explanation Painter Algo, for each of each item in Faces (sorted by furthest away),
+        // quad = the furthest face (item.faceIndex) instead of accessing with 0 or first in array
+        // which isnt ordered, then, get vertex count to see how many vertices have u already
+        // appended so that u allocate more memory to the array if there are more ex:
+        // base = 6 (6 already in array) so u do faces.resize(the old 6 + the new 6 in SIZE only)
+        // like saying if array already has vertices find out how many and keep that same size but add
+        // another 6 in size so that u can append the future new items inside then set the already
+        // known pattern to connect 2 different triangles knowing 4 vertices that connect to eachother
+        // and declare it ({0,1,2, 0,2,3}) iterate for the 6 vertices or points u need to connect together
+        // for creating 2 different triangles, set vidx = quad (current face that was sorted
+        // to be the furthest) quad[tripattern[]<-access first point to connect] => quad[tripattern[k]]
+        // so once u know the first to connect ex: {4,3,1,2} each index representing 1 Idx from which
+        // they are all connected together to form the square but quad is just indices that are represented
+        // and used inside cubeVerts to access the actual vertex of 3 dimensions, project it to ScreenH()
+        // then grabs that specific array in 3d that is the first connection location for the first point in
+        // the triangle, then, ScreenH() internally does all of the process of projecting via homogenous representation,
+        // converting the 3d into 4d etc etc. Do the same for all the 6 faces that were sorted.
 
         window.clear();
-        window.draw(face);
-        window.draw(wire);
+        window.draw(faces);
+        // window.draw(face);
+        // window.draw(wire);
         window.draw(vecLines);
         window.draw(tips);
         window.display();
