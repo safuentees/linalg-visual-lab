@@ -8,30 +8,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// ---- Debug HUD (put near your includes) ----
-#include <sstream>
-#include <iomanip>
+#include <imgui.h>
+#include <imgui-SFML.h>
 
-static std::string mat4ToString(const glm::mat4& M)
-{
-    // GLM is column-major: M[col][row]
-    std::ostringstream ss;
-    ss << std::fixed << std::setprecision(3);
-    for (int r = 0; r < 4; ++r) {
-        ss << "| ";
-        for (int c = 0; c < 4; ++c) {
-            ss << std::setw(8) << M[c][r] << " ";
-        }
-        ss << "|\n";
-    }
-    return ss.str();
-}
+#include "ui.h"
 
-using Vec3 = glm::vec3;
-using Vec4 = glm::vec4;
-using Mat4 = glm::mat4;
-
-// Put near the top with your typedefs
 using Vec3 = glm::vec3;
 using Vec4 = glm::vec4;
 using Mat4 = glm::mat4;
@@ -121,7 +102,7 @@ static Vec3 fromCoords(const Vec3& e1,
     return e1 * c.x + e2 * c.y + e3 * c.z;
 }
 
-void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, float& yaw, float& pitch, float& fovdeg) {
+void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, float& yaw, float& pitch, float& fovdeg, float& y_trans, float& p_p)  {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) f -= focalSpeed * dt;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) f += focalSpeed * dt;
 
@@ -136,23 +117,42 @@ void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, 
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q))    fovdeg -= focalSpeed * dt;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::E))  fovdeg += focalSpeed * dt;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z))  y_trans -= turnSpeed * dt;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X))  y_trans += turnSpeed * dt;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::F))  p_p -= turnSpeed * dt;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::G))  p_p += turnSpeed * dt;
 }
 
 int main() {
-    float ws    = 2.f;
+    float ws    = 5.f;
+    float y_trans = 0.f;
     float yaw   = 7.f;
     float pitch = 7.f;
+    float pitch_plane = 0.f;
+
     float f     = 1.f;
-    float fovDeg = 45.f; // make this a variable
+    float fovDeg = 40.f; // make this a variable
 
     sf::Clock clock;
     const float turnSpeed  = 1.f;
     const float focalSpeed = 30.f;
 
-    constexpr unsigned int kWindowW = 800;
-    constexpr unsigned int kWindowH = 800;
-    sf::RenderWindow window(sf::VideoMode({kWindowW, kWindowH}), "SFML window"); //, sf::State::Fullscreen
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    constexpr unsigned int kMinWindowSize = 800;
+    constexpr unsigned int kMarginW = 80;
+    constexpr unsigned int kMarginH = 120;
+    unsigned int windowW = std::max(kMinWindowSize,
+                                    desktop.size.x > kMarginW ? desktop.size.x - kMarginW : desktop.size.x);
+    unsigned int windowH = std::max(kMinWindowSize,
+                                    desktop.size.y > kMarginH ? desktop.size.y - kMarginH : desktop.size.y);
 
+    sf::RenderWindow window(
+        sf::VideoMode({windowW, windowH}),
+        "SFML window",
+        sf::Style::Titlebar | sf::Style::Close | sf::Style::Resize);
+    ImGui::SFML::Init (window);
     // ---------- cube wireframe ----------
     const float zNear = -0.5f;
     const float zFar  =  0.5f;
@@ -179,7 +179,6 @@ int main() {
         {0,4}, {1,5}, {2,6}, {3,7}
     }};
 
-    // ---------- TEXTBOOK LAYER ----------
     Vec3 v1{1.f, 0.f, 0.f};
     Vec3 v2{0.f, 1.f, 0.f};
     Vec3 v3{0.f, 0.f, 1.f};
@@ -193,6 +192,22 @@ int main() {
 
     Vec3 b = coordsInBasis(u1, u2, u3, w);
 
+    Vec3 origin_world {0, 0, 0};
+    Vec3 p0 = { 0.5 * 4, 0, zNear };
+    Vec3 p1 = { -0.5 * 4, 0, zNear };
+    Vec3 p2 = { 0.5 * 4, 0, zFar };
+    Vec3 p3 = { -0.5 * 4, 0, zFar };
+
+    std::array<Vec3, 4> vecs_grid = { p0, p1, p2, p3 };
+
+    // const std::array<Vec3, 4> plane = {{
+    //     {-0.5f,  0,  zNear}, { 0.5f,  0,  zNear},
+    //     { 0.5f, 0,  zNear}, {-0.5f, 0,  zNear},
+    //     {-0.5f,  0,  zFar }, { 0.5f,  0,  zFar },
+    //     { 0.5f, -0.5,  zFar }, {-0.5f, 0,  zFar }
+    // }};
+    //w
+
     auto computeSceneScale = [&]() -> float {
         std::array<Vec3, 7> vecs = { v1, v2, v3, u1, u2, u3, w };
 
@@ -205,60 +220,63 @@ int main() {
 
     bool printed = false;
 
-    // ---- In main(), after creating the window ----
-    sf::Font debugFont;
-    if (!debugFont.openFromFile("roboto.ttf")) {   // pick any .ttf you have
-        std::cerr << "Failed to load font\n";
-    }
-
-    sf::Text hud(debugFont);
-    hud.setCharacterSize(14);
-    hud.setPosition({10.f, 10.f});
-    hud.setFillColor(sf::Color::White);
-
-    bool showHud = true;
-
     while (window.isOpen()) {
-        int count = 0;
         const float dt = clock.restart().asSeconds();
+        ImGui::SFML::Update(window, sf::seconds(dt));
 
         while (auto ev = window.pollEvent()) {
+            ImGui::SFML::ProcessEvent(window, *ev);
             if (ev->is<sf::Event::Closed>()) window.close();
             else if (const auto* keyPressed = ev->getIf<sf::Event::KeyPressed>())
             {
                 if (keyPressed->scancode == sf::Keyboard::Scancode::Escape)
                     window.close();
-                if (keyPressed->scancode == sf::Keyboard::Scancode::H)
-                    showHud = !showHud;
+            }
+            else if (const auto* resized = ev->getIf<sf::Event::Resized>())
+            {
+                windowW = std::max<unsigned>(1, resized->size.x);
+                windowH = std::max<unsigned>(1, resized->size.y);
             }
         }
 
-        controls(f, focalSpeed, dt, ws, turnSpeed, yaw, pitch, fovDeg);
+        controls(f, focalSpeed, dt, ws, turnSpeed, yaw, pitch, fovDeg, y_trans, pitch_plane);
 
         const float sceneScale = computeSceneScale();
+
+        Vec3 camPos { 0.f, 3.f, 1.f };
+        Vec3 target { 0.f, 0.f, 0.f };
+        Vec3 up { 0.f, 1.f, 0.f };
+
+        Mat4 View = glm::lookAt(camPos, target, up);
 
         // ---- Build MV (matches your old order: scale -> yaw -> pitch -> translate) ----
         // Old code did: world*=sceneScale; world=Ry; world=Rx; world.z += ws;
         // Equivalent matrix: MV = T * Rx * Ry * S
         Mat4 MV_base(1.f);
-        MV_base = glm::translate(MV_base, Vec3(0,0,-ws));
+        Mat4 MV_base_grid(1.f);
+
+        MV_base = glm::translate(MV_base, Vec3(0,y_trans,-ws));
+        MV_base_grid = glm::translate(MV_base_grid, Vec3(0,y_trans,-ws));
+        MV_base_grid = glm::rotate(MV_base_grid, pitch_plane, Vec3(1,0,-5.f));
         MV_base = glm::rotate(MV_base, pitch, Vec3(1,0,0));
         MV_base = glm::rotate(MV_base, yaw,   Vec3(0,1,0));
 
+        MV_base_grid = MV_base_grid;
         Mat4 MV_vectors = glm::scale(MV_base, Vec3(sceneScale));
-        Mat4 MV_cube    = MV_base;  // no scale
+        Mat4 MV_cube    = MV_base;
+
         // ---- Projection ----
-        float aspect = float(kWindowW) / float(kWindowH);
+        float aspect = float(windowW) / float(windowH);
 
         Mat4 P = glm::perspective(glm::radians(fovDeg), aspect, 0.01f, 100.f);
 
         auto addVectorLine = [&](sf::VertexArray& va, const Vec3& vec, sf::Color color)
         {
-            Vec3 originWorld{1.f, 2.f, 3.f}; // Translation Vector in Matrix
+            Vec3 originWorld{0.f, 0.f, 0.f}; // Translation Vector in Matrix
             Vec3 headWorld   = originWorld + vec;
 
-            sf::Vector2f O = toScreenH(originWorld, P, MV_vectors, kWindowW, kWindowH);
-            sf::Vector2f H = toScreenH(headWorld,   P, MV_vectors, kWindowW, kWindowH);
+            sf::Vector2f O = toScreenH(originWorld, P, MV_vectors, windowW, windowH);
+            sf::Vector2f H = toScreenH(headWorld,   P, MV_vectors, windowW, windowH);
 
             std::size_t base = va.getVertexCount();
             va.resize(base + 2);
@@ -274,8 +292,8 @@ int main() {
         for (std::size_t e = 0; e < cubeEdges.size(); ++e) {
             auto [aIdx, bIdx] = cubeEdges[e];
             sf::Vector2f A, B;
-            if (toScreenH(cubeVerts[aIdx], P, MV_cube, kWindowW, kWindowH, A) &&
-                toScreenH(cubeVerts[bIdx], P, MV_cube, kWindowW, kWindowH, B))
+            if (toScreenH(cubeVerts[aIdx], P, MV_cube, windowW, windowH, A) &&
+                toScreenH(cubeVerts[bIdx], P, MV_cube, windowW, windowH, B))
             {
                 wire[2*e+0].position = A;
                 wire[2*e+1].position = B;
@@ -304,9 +322,11 @@ int main() {
         tips.resize(7);
         std::array<Vec3, 7> tipVecs = { v1, v2, v3, u1, u2, u3, w };
         for (std::size_t i = 0; i < tipVecs.size(); ++i) {
-            tips[i].position = toScreenH(tipVecs[i], P, MV_vectors, kWindowW, kWindowH);
+            tips[i].position = toScreenH(tipVecs[i], P, MV_vectors, windowW, windowH);
             tips[i].color = sf::Color::White;
         }
+
+        sf::Vertex origin(toScreenH(origin_world, P, MV_base_grid, windowW, windowH));
 
         if (!printed) {
             printed = true;
@@ -323,8 +343,8 @@ int main() {
         std::vector<FaceDraw> order;
         order.reserve(6);
 
-        for (int f = 0; f < 6; ++f) {
-            const auto& quad = cubeFaces[f];
+        for (int faceIdx = 0; faceIdx < 6; ++faceIdx) {
+            const auto& quad = cubeFaces[faceIdx];
 
             float zsum = 0.f;
             for (int k = 0; k < 4; ++k) {
@@ -333,7 +353,7 @@ int main() {
                 // from model to view without projection by P for each vertice in the current face.
                 zsum += vView.z;
             }
-            order.push_back({f, zsum / 4.f});
+            order.push_back({faceIdx, zsum / 4.f});
             // Standard way of appending ot end of array
         }
 
@@ -357,28 +377,63 @@ int main() {
             static constexpr int triPattern[6] = {0,1,2, 0,2,3};
             for (int k = 0; k < 6; ++k) {
                 int vidx = quad[triPattern[k]];
-                sf::Vector2f p = toScreenH(cubeVerts[vidx], P, MV_cube, kWindowW, kWindowH);
+                sf::Vector2f p = toScreenH(cubeVerts[vidx], P, MV_cube, windowW, windowH);
                 faces[base + k].position = p;
                 faces[base + k].color    = col;
             }
         }
 
-        if (showHud) {
-            std::ostringstream ss;
-            ss << "ws: " << ws << "  yaw: " << yaw << "  pitch: " << pitch << "  fov: " << fovDeg << "\n\n";
-            ss << "MV:\n" << mat4ToString(MV_cube) << "\n";
-            ss << "P:\n"  << mat4ToString(P) << "\n";
-            hud.setString(ss.str());    // update what gets drawn  [oai_citation:3‡SFML](https://www.sfml-dev.org/documentation/2.6.2/classsf_1_1Text.php)
+
+        sf::VertexArray grid(sf::PrimitiveType::Lines, 4);
+        // std::array<Vec3, 4> vecs_grid = { p0, p1, p2, p3 };
+        for ( size_t i = 0 ; i < 4 ; i++ ) {
+            grid[i].position = toScreenH(vecs_grid[i], P, MV_base, windowW, windowH);
         }
 
+        sf::VertexArray triangles(sf::PrimitiveType::Triangles, 6);
+
+        static constexpr int triPattern[6] = { 0, 1, 2,  1, 2, 3 };
+        for (int k = 0; k < 6; ++k) {
+            auto vid_x = vecs_grid[triPattern[k]];
+            sf::Vector2f p = toScreenH(vid_x, P, MV_base_grid, windowW, windowH);
+            triangles[k].position = p;
+        }
+
+        UiState uiState{
+            .ws = ws,
+            .yaw = yaw,
+            .pitch = pitch,
+            .fovDeg = fovDeg,
+            .f = f,
+            .sceneScale = sceneScale,
+            .aspect = aspect,
+            .windowW = windowW,
+            .windowH = windowH,
+            .v1 = v1,
+            .v2 = v2,
+            .v3 = v3,
+            .u1 = u1,
+            .u2 = u2,
+            .u3 = u3,
+            .a = a,
+            .b = b,
+            .w = w,
+            .MV_base = MV_base,
+            .MV_vectors = MV_vectors,
+            .P = P,
+            .tipVecs = tipVecs
+        };
+        ShowMatrixLab(uiState);
+
         window.clear();
-        if (showHud)
-            window.draw(hud);           // draw text on top  [oai_citation:4‡SFML](https://www.sfml-dev.org/documentation/2.6.2/classsf_1_1Text.php)
+        window.draw(triangles);
         window.draw(faces);
         // window.draw(face);
         window.draw(wire);
         window.draw(vecLines);
         window.draw(tips);
+        window.draw(&origin, 1, sf::PrimitiveType::Points);
+        ImGui::SFML::Render(window); //  [oai_citation:7‡GitHub](https://github.com/SFML/imgui-sfml)
         window.display();
     }
 
