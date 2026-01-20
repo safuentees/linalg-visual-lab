@@ -1,0 +1,20 @@
+# ninja log v6
+664	760	1768527423352344384	projection_3d_2d	7a90f60f6400819d
+5	664	1768527422693446764	CMakeFiles/projection_3d_2d.dir/main.cpp.o	8c59c7067835c0bf
+1	983	1768526976575019142	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/imgui-SFML.cpp.o	3234d40fbc98af44
+1	640	1768526976575835107	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/misc/cpp/imgui_stdlib.cpp.o	4f1e749ce24c88d4
+1	141	1768527952473817153	/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/cmake_install.cmake	6f2313c335021349
+1	578	1768526976575357353	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/imgui_demo.cpp.o	13ab7d774dae18ef
+1	540	1768526976575464062	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/imgui_draw.cpp.o	48065c46398a52f2
+1	141	1768527952471837534	/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/cmake_install.cmake	6f2313c335021349
+1	476	1768526976575567980	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/imgui_tables.cpp.o	730db7002cf7e311
+984	1047	1768526977557898546	_deps/imgui_sfml-build/libImGui-SFML.a	5f8dc4ace330a9db
+1	772	1768526976575239477	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/imgui.cpp.o	65283323cd7fef3
+1	672	1768526976575716522	_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir/__/imgui-src/imgui_widgets.cpp.o	b59bf1c2904a5524
+1	141	1768527952474369496	build.ninja	6f2313c335021349
+2	111	1768527952474369496	build.ninja	6f2313c335021349
+2	111	1768527952474369496	/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/cmake_install.cmake	6f2313c335021349
+2	111	1768527952474369496	/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/cmake_install.cmake	6f2313c335021349
+6	787	1768527952484029629	CMakeFiles/projection_3d_2d.dir/ui.cpp.o	72ad64e1f6ec52d3
+5	884	1768527952483670665	CMakeFiles/projection_3d_2d.dir/main.cpp.o	8c59c7067835c0bf
+884	980	1768527953362346563	projection_3d_2d	2be22ecf693da248

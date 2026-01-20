@@ -43,7 +43,25 @@ set(IMGUI_SFML_FIND_SFML OFF CACHE BOOL "Disable SFML find in ImGui-SFML" FORCE)
 
 FetchContent_MakeAvailable(imgui_sfml)
 
-add_executable(projection_3d_2d main.cpp ui.cpp)
+add_executable(projection_3d_2d
+        src/main.cpp
+        src/ui/MatrixLabUI.cpp
+        src/ui/MatrixLabUI.hpp
+        src/app/App.cpp
+        src/app/App.hpp
+        src/render/Projection.cpp
+        src/render/Projection.hpp
+        src/render/Mesh.cpp
+        src/render/Mesh.hpp
+        src/math/Camera.cpp
+        src/math/Camera.hpp
+        src/math/Basis.cpp
+        src/math/Basis.hpp
+        src/math/Types.hpp)
+
+target_include_directories(projection_3d_2d
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_link_libraries(projection_3d_2d
         PRIVATE

@@ -1,0 +1,14 @@
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/projection_3d_2d.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/edit_cache.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/rebuild_cache.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/list_install_components.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/install.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/install/local.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/install/strip.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/ImGui-SFML.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/edit_cache.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/rebuild_cache.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/list_install_components.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/install.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/install/local.dir
+/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/CMakeFiles/install/strip.dir

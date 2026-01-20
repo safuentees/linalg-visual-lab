@@ -102,7 +102,7 @@ static Vec3 fromCoords(const Vec3& e1,
     return e1 * c.x + e2 * c.y + e3 * c.z;
 }
 
-void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, float& yaw, float& pitch, float& fovdeg, float& y_trans, float& p_p)  {
+void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, float& yaw, float& pitch, float& fovdeg, float& y_trans, float& p_p,  float& camPitch, float& cy)  {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) f -= focalSpeed * dt;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) f += focalSpeed * dt;
 
@@ -123,6 +123,13 @@ void controls(float& f, float focalSpeed, float dt, float& ws, float turnSpeed, 
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::F))  p_p -= turnSpeed * dt;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::G))  p_p += turnSpeed * dt;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P))  camPitch -= turnSpeed * dt;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O))  camPitch += turnSpeed * dt;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L))  cy -= turnSpeed * dt;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K))  cy += turnSpeed * dt;
+
 }
 
 int main() {
@@ -131,6 +138,16 @@ int main() {
     float yaw   = 7.f;
     float pitch = 7.f;
     float pitch_plane = 0.f;
+
+
+    // Camera (orbit) state (radians)
+    float camYaw   = glm::radians(0.f);   // left/right around Y
+    float camPitch = glm::radians(0.f);  // up/down
+    float camRadius = 8.f;                // distance from target
+
+    Vec3 camTarget {0.f, 0.f, 0.f};
+    Vec3 worldUp   {0.f, 1.f, 0.f};
+
 
     float f     = 1.f;
     float fovDeg = 40.f; // make this a variable
@@ -193,12 +210,29 @@ int main() {
     Vec3 b = coordsInBasis(u1, u2, u3, w);
 
     Vec3 origin_world {0, 0, 0};
-    Vec3 p0 = { 0.5 * 4, 0, zNear };
-    Vec3 p1 = { -0.5 * 4, 0, zNear };
-    Vec3 p2 = { 0.5 * 4, 0, zFar };
-    Vec3 p3 = { -0.5 * 4, 0, zFar };
+    float S = 10.f;
+    float h = S * 0.5f;
+
+    Vec3 p0 = { +h, 0, -h };
+    Vec3 p1 = { -h, 0, -h };
+    Vec3 p2 = { +h, 0, +h };
+    Vec3 p3 = { -h, 0, +h };
+
+    int N  { 0 };
 
     std::array<Vec3, 4> vecs_grid = { p0, p1, p2, p3 };
+    sf::VertexArray grid_points(sf::PrimitiveType::Points, 0);
+    for (int i = 0; i <= N; ++i) {
+        for (int j = 0; j <= N - i; ++j) {
+            int k = N - i - j;          // forced by the sum constraint
+            // barycentric weights:
+            grid_points.resize(grid_points.getVertexCount() + 1);
+            float a_bar = float(i) / N;
+            float b_bar = float(j) / N;
+            float c_bar = float(k) / N;     // a + b + c == 1
+            emit(a_bar, b_bar,c_bar);
+        }
+    }
 
     // const std::array<Vec3, 4> plane = {{
     //     {-0.5f,  0,  zNear}, { 0.5f,  0,  zNear},
@@ -239,31 +273,27 @@ int main() {
             }
         }
 
-        controls(f, focalSpeed, dt, ws, turnSpeed, yaw, pitch, fovDeg, y_trans, pitch_plane);
+        controls(f, focalSpeed, dt, ws, turnSpeed, yaw, pitch, fovDeg, y_trans, pitch_plane, camYaw,camPitch);
 
         const float sceneScale = computeSceneScale();
 
-        Vec3 camPos { 0.f, 3.f, 1.f };
-        Vec3 target { 0.f, 0.f, 0.f };
-        Vec3 up { 0.f, 1.f, 0.f };
+        // Orbit camera position from spherical coords
+        Vec3 camPos;
+        camPos.x = camTarget.x + camRadius * std::cos(camPitch) * std::sin(camYaw);
+        camPos.y = camTarget.y + camRadius * std::sin(camPitch);
+        camPos.z = camTarget.z + camRadius * std::cos(camPitch) * std::cos(camYaw);
 
-        Mat4 View = glm::lookAt(camPos, target, up);
+        Mat4 View = glm::lookAt(camPos, camTarget, worldUp);
 
-        // ---- Build MV (matches your old order: scale -> yaw -> pitch -> translate) ----
-        // Old code did: world*=sceneScale; world=Ry; world=Rx; world.z += ws;
-        // Equivalent matrix: MV = T * Rx * Ry * S
-        Mat4 MV_base(1.f);
-        Mat4 MV_base_grid(1.f);
+        auto Model_plane = Mat4(1.f); // identity, no model transform
+        Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0, y_trans, -ws));
+        MV_plane = View * Model_plane * MV_plane;
 
-        MV_base = glm::translate(MV_base, Vec3(0,y_trans,-ws));
-        MV_base_grid = glm::translate(MV_base_grid, Vec3(0,y_trans,-ws));
-        MV_base_grid = glm::rotate(MV_base_grid, pitch_plane, Vec3(1,0,-5.f));
-        MV_base = glm::rotate(MV_base, pitch, Vec3(1,0,0));
-        MV_base = glm::rotate(MV_base, yaw,   Vec3(0,1,0));
+        Mat4 Model_cube = glm::translate(Mat4(1.f), Vec3(0, y_trans, -ws));
+        Model_cube = glm::rotate(Model_cube, pitch, Vec3(1,0,0));
+        Model_cube = glm::rotate(Model_cube, yaw,   Vec3(0,1,0));
 
-        MV_base_grid = MV_base_grid;
-        Mat4 MV_vectors = glm::scale(MV_base, Vec3(sceneScale));
-        Mat4 MV_cube    = MV_base;
+        Mat4 MV_cube = View * Model_cube;
 
         // ---- Projection ----
         float aspect = float(windowW) / float(windowH);
@@ -275,8 +305,8 @@ int main() {
             Vec3 originWorld{0.f, 0.f, 0.f}; // Translation Vector in Matrix
             Vec3 headWorld   = originWorld + vec;
 
-            sf::Vector2f O = toScreenH(originWorld, P, MV_vectors, windowW, windowH);
-            sf::Vector2f H = toScreenH(headWorld,   P, MV_vectors, windowW, windowH);
+            sf::Vector2f O = toScreenH(originWorld, P, MV_cube, windowW, windowH);
+            sf::Vector2f H = toScreenH(headWorld,   P, MV_cube, windowW, windowH);
 
             std::size_t base = va.getVertexCount();
             va.resize(base + 2);
@@ -322,11 +352,11 @@ int main() {
         tips.resize(7);
         std::array<Vec3, 7> tipVecs = { v1, v2, v3, u1, u2, u3, w };
         for (std::size_t i = 0; i < tipVecs.size(); ++i) {
-            tips[i].position = toScreenH(tipVecs[i], P, MV_vectors, windowW, windowH);
+            tips[i].position = toScreenH(tipVecs[i], P, MV_plane, windowW, windowH);
             tips[i].color = sf::Color::White;
         }
 
-        sf::Vertex origin(toScreenH(origin_world, P, MV_base_grid, windowW, windowH));
+        sf::Vertex origin(toScreenH(origin_world, P, MV_plane, windowW, windowH));
 
         if (!printed) {
             printed = true;
@@ -387,7 +417,7 @@ int main() {
         sf::VertexArray grid(sf::PrimitiveType::Lines, 4);
         // std::array<Vec3, 4> vecs_grid = { p0, p1, p2, p3 };
         for ( size_t i = 0 ; i < 4 ; i++ ) {
-            grid[i].position = toScreenH(vecs_grid[i], P, MV_base, windowW, windowH);
+            grid[i].position = toScreenH(vecs_grid[i], P, MV_plane, windowW, windowH);
         }
 
         sf::VertexArray triangles(sf::PrimitiveType::Triangles, 6);
@@ -395,7 +425,7 @@ int main() {
         static constexpr int triPattern[6] = { 0, 1, 2,  1, 2, 3 };
         for (int k = 0; k < 6; ++k) {
             auto vid_x = vecs_grid[triPattern[k]];
-            sf::Vector2f p = toScreenH(vid_x, P, MV_base_grid, windowW, windowH);
+            sf::Vector2f p = toScreenH(vid_x, P, MV_plane, windowW, windowH);
             triangles[k].position = p;
         }
 
@@ -418,8 +448,8 @@ int main() {
             .a = a,
             .b = b,
             .w = w,
-            .MV_base = MV_base,
-            .MV_vectors = MV_vectors,
+            .MV_base = MV_plane,
+            .MV_vectors = MV_plane,
             .P = P,
             .tipVecs = tipVecs
         };
