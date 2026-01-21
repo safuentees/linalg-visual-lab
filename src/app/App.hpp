@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-
+#include <map>
 #include <SFML/Graphics.hpp>
 
 #include "math/Camera.hpp"
@@ -21,10 +21,13 @@ private: // Members are initialized in the order they are declared in the class,
     void Render();
     void UpdateControls(float dt);
     float ComputeSceneScale() const;
-    static std::vector<glm::vec3> barycentricGrid(const glm::vec3& A,
-                                                  const glm::vec3& B,
-                                                  const glm::vec3& C,
-                                                  int N);
+    std::map<std::tuple<int,int>, sf::Vector2f> barycentricGrid(const glm::vec3& A,
+                                       const glm::vec3& B,
+                                       const glm::vec3& C,
+                                       int N,
+                                       const Mat4 &Pr,
+                                       const Mat4 &M
+                                       ) const;
 
     unsigned int windowW_{};
     unsigned int windowH_{};
@@ -48,12 +51,8 @@ private: // Members are initialized in the order they are declared in the class,
     std::array<Vec3, 4> grid_{};
     // std::vector<glm::vec3>;
 
-    Vec3 v1_{};
-    Vec3 v2_{};
-    Vec3 v3_{};
-    Vec3 u1_{};
-    Vec3 u2_{};
-    Vec3 u3_{};
+    std::array<Vec3, 3> vBasis_{};
+    std::array<Vec3, 3> uBasis_{};
     Vec3 a_{};
     Vec3 b_{};
     Vec3 w_{};
