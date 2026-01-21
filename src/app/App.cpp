@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <iostream>
 #include <ranges>
 #include <vector>
@@ -39,13 +40,13 @@ sf::RenderWindow CreateWindow(unsigned int& outW, unsigned int& outH) {
 }
 
 void AddVectorLine(sf::VertexArray& va,
+                   const Vec3& originWorld,
                    const Vec3& vec,
                    const Mat4& P,
                    const Mat4& MV,
                    unsigned int width,
                    unsigned int height,
                    sf::Color color) {
-    Vec3 originWorld{0.f, 0.f, 0.f};
     Vec3 headWorld = originWorld + vec;
 
     sf::Vector2f origin = render::ToScreenH(originWorld, P, MV, width, height);
@@ -59,6 +60,18 @@ void AddVectorLine(sf::VertexArray& va,
     va[base + 1].color = color;
 }
 
+void AddVectorLine(sf::VertexArray& va,
+                   const Vec3& vec,
+                   const Mat4& P,
+                   const Mat4& MV,
+                   unsigned int width,
+                   unsigned int height,
+                   sf::Color color) {
+
+    AddVectorLine(va, Vec3{0.f, 0.f, 0.f}, vec, P, MV, width, height, color);
+}
+
+
 sf::VertexArray BuildWireframe(const render::CubeMesh& cube_,
                                const Mat4& P,
                                const Mat4& MV_cube,
@@ -71,7 +84,7 @@ sf::VertexArray BuildWireframe(const render::CubeMesh& cube_,
         auto [aIdx, bIdx] = cube_.edges[e];
         sf::Vector2f A;
         sf::Vector2f B;
-        if (render::ToScreenH(cube_.vertices[aIdx], P, MV_cube, windowW_, windowH_, A) &&
+          if (render::ToScreenH(cube_.vertices[aIdx], P, MV_cube, windowW_, windowH_, A) &&
             render::ToScreenH(cube_.vertices[bIdx], P, MV_cube, windowW_, windowH_, B)) {
             wire[2 * e + 0].position = A;
             wire[2 * e + 1].position = B;
@@ -90,17 +103,35 @@ sf::VertexArray BuildVectorLines(const std::array<Vec3, 3>& vBasis,
                                  const Mat4& P,
                                  const Mat4& MV_cube,
                                  unsigned int windowW_,
-                                 unsigned int windowH_) {
+                                 unsigned int windowH_,
+                                 const Mat4& MV_plane) {
     sf::VertexArray vecLines(sf::PrimitiveType::Lines);
-    AddVectorLine(vecLines, vBasis[0], P, MV_cube, windowW_, windowH_, sf::Color::Red);
-    AddVectorLine(vecLines, vBasis[1], P, MV_cube, windowW_, windowH_, sf::Color::Green);
-    AddVectorLine(vecLines, vBasis[2], P, MV_cube, windowW_, windowH_, sf::Color::Blue);
+    AddVectorLine(vecLines, {1,0,0}, P, MV_plane, windowW_, windowH_, sf::Color::Red);
+    AddVectorLine(vecLines, {0,1,0}, P, MV_plane, windowW_, windowH_, sf::Color::Green);
+    AddVectorLine(vecLines, {0,0,1}, P, MV_plane, windowW_, windowH_, sf::Color::Blue);
 
-    AddVectorLine(vecLines, uBasis[0], P, MV_cube, windowW_, windowH_, sf::Color(255, 140, 140));
-    AddVectorLine(vecLines, uBasis[1], P, MV_cube, windowW_, windowH_, sf::Color(140, 255, 140));
-    AddVectorLine(vecLines, uBasis[2], P, MV_cube, windowW_, windowH_, sf::Color(140, 140, 255));
+    // AddVectorLine(vecLines, uBasis[0], P, MV_cube, windowW_, windowH_, sf::Color(255, 140, 140));
+    // AddVectorLine(vecLines, uBasis[1], P, MV_cube, windowW_, windowH_, sf::Color(140, 255, 140));
+    // AddVectorLine(vecLines, uBasis[2], P, MV_cube, windowW_, windowH_, sf::Color(140, 140, 255));
+    const auto m_w =  w_ / glm::length(w_);
+    const Vec3 proj_m_w =  {0,m_w.y,m_w.z};
+    const auto d = glm::length(proj_m_w);
+    const auto x_cos = proj_m_w.z / d;
+    const auto x_sin = proj_m_w.y / d;
 
-    AddVectorLine(vecLines, w_, P, MV_cube, windowW_, windowH_, sf::Color::White);
+    float angle = std::atan2(x_sin, x_cos);
+    // Mat4 R = glm::rotate(MV_plane, angle, proj_m_w);
+    Mat4 R = glm::rotate(MV_plane, angle, Vec3{1.f, 0.f, 0.f});
+    // Vec3 rotated = Vec3(R * Vec4(proj, 0.f)); // w=0 for direction
+
+    auto y = proj_m_w.y * x_cos - proj_m_w.z * x_sin;
+
+    const Vec3 proj_m_w_cancel_y =  {0, y, m_w.z};
+
+    constexpr Vec3 o = {0,0,0};
+    AddVectorLine(vecLines, o, m_w, P, MV_cube, windowW_, windowH_, sf::Color::Blue);
+    AddVectorLine(vecLines, o, proj_m_w, P, MV_plane, windowW_, windowH_, sf::Color::Red);
+    AddVectorLine(vecLines, o, proj_m_w, P, R, windowW_, windowH_, sf::Color::Yellow);
 
     return vecLines;
 }
@@ -268,10 +299,10 @@ App::App() // Members are initialized in the order they are declared in the clas
     {
     window_.setFramerateLimit(120);
     ImGui::SFML::Init(window_);
-    ws_ = 5.f;
+    ws_ = 0.f;
     yTrans_ = 0.f;
-    yaw_ = 7.f;
-    pitch_ = 7.f;
+    yaw_ = 0.f;
+    pitch_ = 0.f;
     pitchPlane_ = 0.f;
 
     f_ = 1.f;
@@ -293,7 +324,8 @@ App::App() // Members are initialized in the order they are declared in the clas
     vBasis_[2] = {0.f, 0.f, 1.f};
 
     a_ = {1.f, 2.f, 3.f};
-    w_ = math::FromCoords(vBasis_[0], vBasis_[1], vBasis_[2], a_);
+    // w_ = math::FromCoords(vBasis_[0], vBasis_[1], vBasis_[2], a_);
+    w_ = {1.f, 1.f, 1.f};
 
     uBasis_[0] = vBasis_[0];
     uBasis_[1] = vBasis_[0] + vBasis_[1];
@@ -434,7 +466,7 @@ float App::ComputeSceneScale() const {
 
 void App:: Render() {
     const float sceneScale = ComputeSceneScale();
-
+    float tetha_arb = 0.f;
     Mat4 view = camera_.ViewMatrix();
 
     Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0.f, yTrans_, -ws_));
@@ -443,27 +475,33 @@ void App:: Render() {
     Mat4 modelCube = glm::translate(Mat4(1.f), Vec3(0.f, yTrans_, -ws_));
     modelCube = glm::rotate(modelCube, pitch_, Vec3(1.f, 0.f, 0.f));
     modelCube = glm::rotate(modelCube, yaw_, Vec3(0.f, 1.f, 0.f));
+    Mat4 modelVr = glm::translate(Mat4(1.f), -w_);
+
+    modelVr = glm::rotate(modelVr, tetha_arb, Vec3(1.f, 0.f, 0.f));
+
+    Vec3 w_vec{1,1,1};
+    auto d = sqrt(w_vec.y * w_vec.y + w_vec.z * w_vec.y);
 
     Mat4 MV_cube = view * modelCube;
+
+
 
     const float aspect = static_cast<float>(windowW_) / static_cast<float>(windowH_);
     Mat4 P = glm::perspective(glm::radians(fovDeg_), aspect, 0.01f, 100.f);
 
     sf::VertexArray wire = BuildWireframe(cube_, P, MV_cube, windowW_, windowH_);
 
-    sf::VertexArray vecLines =
-        BuildVectorLines(vBasis_, uBasis_, w_, P, MV_cube, windowW_, windowH_);
+    sf::VertexArray vecLines = BuildVectorLines(vBasis_, uBasis_, w_, P, MV_cube, windowW_, windowH_, MV_plane);
 
-    std::array<Vec3, 7> tipVecs = {vBasis_[0], vBasis_[1], vBasis_[2],
-                                   uBasis_[0], uBasis_[1], uBasis_[2],
-                                   w_};
+    std::array<Vec3, 7> tipVecs = {vBasis_[0], vBasis_[1], vBasis_[2]};
     sf::VertexArray tips = BuildTips(tipVecs, P, MV_plane, windowW_, windowH_);
 
     sf::Vertex origin(render::ToScreenH(originWorld_, P, MV_plane, windowW_, windowH_));
 
     sf::VertexArray faces = BuildFaces(cube_, P, MV_cube, windowW_, windowH_);
 
-    sf::VertexArray grid = BuildGridLines(grid_, P, MV_plane, windowW_, windowH_);
+    sf::VertexArray basis = BuildGridLines(grid_, P, MV_plane, windowW_, windowH_);
+
 
     GridDrawData gridDraw = BuildGridDrawData(grid_, P, MV_plane, windowW_, windowH_);
 
@@ -501,10 +539,10 @@ void App:: Render() {
 
     window_.draw(gridDraw.points_grid);
     window_.draw(gridDraw.lines_grid);
-    window_.draw(faces);
+    // window_.draw(faces);
     window_.draw(wire);
     window_.draw(vecLines);
-    window_.draw(tips);
+    // window_.draw(tips);
     window_.draw(&origin, 1, sf::PrimitiveType::Points);
     ImGui::SFML::Render(window_);
     window_.display();
