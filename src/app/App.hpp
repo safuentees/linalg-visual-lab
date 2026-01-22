@@ -42,6 +42,7 @@ private: // Members are initialized in the order they are declared in the class,
     float pitchPlane_{};
     float f_{};
     float fovDeg_{};
+    float axisAngle_{};
     float turnSpeed_{};
     float focalSpeed_{};
 

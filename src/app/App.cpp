@@ -71,6 +71,58 @@ void AddVectorLine(sf::VertexArray& va,
     AddVectorLine(va, Vec3{0.f, 0.f, 0.f}, vec, P, MV, width, height, color);
 }
 
+Mat4 BuildAxisRotation(const Vec3& axis,
+                       float theta,
+                       Vec3* out_wx,
+                       Vec3* out_wz) {
+    // “Align to z”: multiply by A (encodes rotations about x, y to get (0, 0, 1))
+    // “Rotate about z”: multiply by R_z
+    // “Undo alignment”: multiply by A^{-1} (inverse rotations about x, y to get values back)
+
+    const float axisLen = glm::length(axis);
+    if (axisLen <= 1e-6f) {
+        if (out_wx) {
+            *out_wx = Vec3(0.f);
+        }
+        if (out_wz) {
+            *out_wz = Vec3(0.f);
+        }
+        return Mat4(1.f);
+    }
+
+    const Vec3 m_w = axis / axisLen;
+    const float d = std::sqrt(m_w.y * m_w.y + m_w.z * m_w.z);
+
+    Mat4 Rx(1.f);
+    Vec3 w_x = m_w;
+    if (d > 1e-6f) {
+        const float c = m_w.z / d;
+        const float s = m_w.y / d;
+        Rx[1][1] = c;
+        Rx[2][1] = -s;
+        Rx[1][2] = s;
+        Rx[2][2] = c;
+        w_x = Vec3(Rx * Vec4(m_w, 0.f));
+    }
+    // atan2 same as approach above longer but more intuitive. Rx to (x,0,z) Ry to (0,0,z).
+    const float theta_y = std::atan2(-w_x.x, w_x.z);
+    const Mat4 Ry = glm::rotate(Mat4(1.f), theta_y, Vec3{0.f, 1.f, 0.f});
+    const Vec3 w_z = Vec3(Ry * Vec4(w_x, 0.f));
+
+    const Mat4 A = Ry * Rx;
+    const Mat4 Rz = glm::rotate(Mat4(1.f), theta, Vec3{0.f, 0.f, 1.f});
+    const Mat4 R = glm::transpose(A) * Rz * A;
+
+    if (out_wx) {
+        *out_wx = w_x;
+    }
+    if (out_wz) {
+        *out_wz = w_z;
+    }
+
+    return R;
+}
+
 
 sf::VertexArray BuildWireframe(const render::CubeMesh& cube_,
                                const Mat4& P,
@@ -104,34 +156,36 @@ sf::VertexArray BuildVectorLines(const std::array<Vec3, 3>& vBasis,
                                  const Mat4& MV_cube,
                                  unsigned int windowW_,
                                  unsigned int windowH_,
-                                 const Mat4& MV_plane) {
+                                 const Mat4& MV_plane,
+                                 float axisAngle) {
     sf::VertexArray vecLines(sf::PrimitiveType::Lines);
-    AddVectorLine(vecLines, {1,0,0}, P, MV_plane, windowW_, windowH_, sf::Color::Red);
-    AddVectorLine(vecLines, {0,1,0}, P, MV_plane, windowW_, windowH_, sf::Color::Green);
-    AddVectorLine(vecLines, {0,0,1}, P, MV_plane, windowW_, windowH_, sf::Color::Blue);
+    // AddVectorLine(vecLines, {1,0,0}, P, MV_plane, windowW_, windowH_, sf::Color::Red);
+    // AddVectorLine(vecLines, {0,1,0}, P, MV_plane, windowW_, windowH_, sf::Color::Green);
+    // AddVectorLine(vecLines, {0,0,1}, P, MV_plane, windowW_, windowH_, sf::Color::Blue);
 
     // AddVectorLine(vecLines, uBasis[0], P, MV_cube, windowW_, windowH_, sf::Color(255, 140, 140));
     // AddVectorLine(vecLines, uBasis[1], P, MV_cube, windowW_, windowH_, sf::Color(140, 255, 140));
     // AddVectorLine(vecLines, uBasis[2], P, MV_cube, windowW_, windowH_, sf::Color(140, 140, 255));
-    const auto m_w =  w_ / glm::length(w_);
-    const Vec3 proj_m_w =  {0,m_w.y,m_w.z};
-    const auto d = glm::length(proj_m_w);
-    const auto x_cos = proj_m_w.z / d;
-    const auto x_sin = proj_m_w.y / d;
+    const auto m_w = w_ / glm::length(w_);
 
-    float angle = std::atan2(x_sin, x_cos);
-    // Mat4 R = glm::rotate(MV_plane, angle, proj_m_w);
-    Mat4 R = glm::rotate(MV_plane, angle, Vec3{1.f, 0.f, 0.f});
-    // Vec3 rotated = Vec3(R * Vec4(proj, 0.f)); // w=0 for direction
-
-    auto y = proj_m_w.y * x_cos - proj_m_w.z * x_sin;
-
-    const Vec3 proj_m_w_cancel_y =  {0, y, m_w.z};
-
-    constexpr Vec3 o = {0,0,0};
+    constexpr Vec3 o = {0, 0, 0};
     AddVectorLine(vecLines, o, m_w, P, MV_cube, windowW_, windowH_, sf::Color::Blue);
-    AddVectorLine(vecLines, o, proj_m_w, P, MV_plane, windowW_, windowH_, sf::Color::Red);
-    AddVectorLine(vecLines, o, proj_m_w, P, R, windowW_, windowH_, sf::Color::Yellow);
+
+    Vec3 w_x(0.f);
+    Vec3 w_z(0.f);
+    Mat4 R = BuildAxisRotation(w_, axisAngle, &w_x, &w_z);
+
+    Vec3 test = Vec3{0, 1, 0};
+    if (glm::length(glm::cross(test, m_w)) < 1e-6f) {
+        test = Vec3{1, 0, 0};
+    }
+
+    auto rotated = Vec3(R * Vec4(test, 0.f));
+
+    AddVectorLine(vecLines, o, w_x, P, MV_plane, windowW_, windowH_, sf::Color::Green);
+    AddVectorLine(vecLines, o, w_z, P, MV_plane, windowW_, windowH_, sf::Color::Red);
+    AddVectorLine(vecLines, o, test,     P, MV_plane, windowW_, windowH_, sf::Color::Cyan);
+    AddVectorLine(vecLines, o, rotated,  P, MV_plane, windowW_, windowH_, sf::Color::Magenta);
 
     return vecLines;
 }
@@ -304,6 +358,7 @@ App::App() // Members are initialized in the order they are declared in the clas
     yaw_ = 0.f;
     pitch_ = 0.f;
     pitchPlane_ = 0.f;
+    axisAngle_ = 0.f;
 
     f_ = 1.f;
     fovDeg_ = 40.f;
@@ -448,6 +503,15 @@ void App::UpdateControls(float dt) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
         camera_.pitch += turnSpeed_ * dt;
     }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num0) ||
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad0)) {
+        axisAngle_ += turnSpeed_ * dt;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num9) ||
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad9)) {
+        axisAngle_ -= turnSpeed_ * dt;
+    }
 }
 
 float App::ComputeSceneScale() const {
@@ -475,9 +539,8 @@ void App:: Render() {
     Mat4 modelCube = glm::translate(Mat4(1.f), Vec3(0.f, yTrans_, -ws_));
     modelCube = glm::rotate(modelCube, pitch_, Vec3(1.f, 0.f, 0.f));
     modelCube = glm::rotate(modelCube, yaw_, Vec3(0.f, 1.f, 0.f));
-    Mat4 modelVr = glm::translate(Mat4(1.f), -w_);
-
-    modelVr = glm::rotate(modelVr, tetha_arb, Vec3(1.f, 0.f, 0.f));
+    Mat4 axisRot = BuildAxisRotation(w_, axisAngle_, nullptr, nullptr);
+    modelCube = axisRot * modelCube;
 
     Vec3 w_vec{1,1,1};
     auto d = sqrt(w_vec.y * w_vec.y + w_vec.z * w_vec.y);
@@ -491,7 +554,15 @@ void App:: Render() {
 
     sf::VertexArray wire = BuildWireframe(cube_, P, MV_cube, windowW_, windowH_);
 
-    sf::VertexArray vecLines = BuildVectorLines(vBasis_, uBasis_, w_, P, MV_cube, windowW_, windowH_, MV_plane);
+    sf::VertexArray vecLines = BuildVectorLines(vBasis_,
+                                                uBasis_,
+                                                w_,
+                                                P,
+                                                MV_cube,
+                                                windowW_,
+                                                windowH_,
+                                                MV_plane,
+                                                axisAngle_);
 
     std::array<Vec3, 7> tipVecs = {vBasis_[0], vBasis_[1], vBasis_[2]};
     sf::VertexArray tips = BuildTips(tipVecs, P, MV_plane, windowW_, windowH_);
@@ -539,8 +610,8 @@ void App:: Render() {
 
     window_.draw(gridDraw.points_grid);
     window_.draw(gridDraw.lines_grid);
-    // window_.draw(faces);
-    window_.draw(wire);
+    window_.draw(faces);
+    // window_.draw(wire);
     window_.draw(vecLines);
     // window_.draw(tips);
     window_.draw(&origin, 1, sf::PrimitiveType::Points);
