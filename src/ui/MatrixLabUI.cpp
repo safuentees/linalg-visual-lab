@@ -1,9 +1,12 @@
 #include "ui/MatrixLabUI.hpp"
 
-#include <array>
 #include <cmath>
 
-static void ImGuiVec3Row(const char* label, const Vec3& v) {
+#include <imgui.h>
+
+namespace {
+
+void Vec3Row(const char* label, const Vec3& v) {
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
     ImGui::TextUnformatted(label);
@@ -15,7 +18,7 @@ static void ImGuiVec3Row(const char* label, const Vec3& v) {
     ImGui::Text("%.3f", v.z);
 }
 
-static void ImGuiVec4Row(const char* label, const Vec4& v) {
+void Vec4Row(const char* label, const Vec4& v) {
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
     ImGui::TextUnformatted(label);
@@ -29,7 +32,7 @@ static void ImGuiVec4Row(const char* label, const Vec4& v) {
     ImGui::Text("%.3f", v.w);
 }
 
-static void ImGuiMat4Table(const char* label, const Mat4& m) {
+void Mat4Table(const char* label, const Mat4& m) {
     ImGui::TextUnformatted(label);
     ImGui::PushID(label);
     if (ImGui::BeginTable("##mat4", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
@@ -45,104 +48,134 @@ static void ImGuiMat4Table(const char* label, const Mat4& m) {
     ImGui::PopID();
 }
 
-static void ImGuiVec3Table(const char* label,
-                           const std::array<std::pair<const char*, Vec3>, 7>& rows) {
-    ImGui::TextUnformatted(label);
-    if (ImGui::BeginTable(label, 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
+void ControlsSection(const app::TransformParams& transform, const app::ViewParams& view) {
+    if (!ImGui::CollapsingHeader("Controls and Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+    ImGui::TextUnformatted("A/D: focal length  W/S: distance  Arrows: yaw/pitch  Q/E: FOV");
+    ImGui::Text("distance: %.3f", transform.distance);
+    ImGui::Text("yaw: %.3f", transform.yaw);
+    ImGui::Text("pitch: %.3f", transform.pitch);
+    ImGui::Text("fov: %.3f", view.fovDeg);
+    ImGui::Text("f: %.3f", view.focalLength);
+}
+
+void BasisSection(const app::SceneGeometry& scene) {
+    if (!ImGui::CollapsingHeader("Basis and Coordinates", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+
+    if (ImGui::BeginTable("v-basis", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("vec");
         ImGui::TableSetupColumn("x");
         ImGui::TableSetupColumn("y");
         ImGui::TableSetupColumn("z");
         ImGui::TableHeadersRow();
-        for (const auto& row : rows) {
-            ImGuiVec3Row(row.first, row.second);
-        }
+        Vec3Row("v1", scene.vBasis[0]);
+        Vec3Row("v2", scene.vBasis[1]);
+        Vec3Row("v3", scene.vBasis[2]);
+        Vec3Row("a (coords)", scene.a);
+        Vec3Row("w (world)", scene.w);
+        ImGui::EndTable();
+    }
+
+    if (ImGui::BeginTable("u-basis", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableSetupColumn("vec");
+        ImGui::TableSetupColumn("x");
+        ImGui::TableSetupColumn("y");
+        ImGui::TableSetupColumn("z");
+        ImGui::TableHeadersRow();
+        Vec3Row("u1", scene.uBasis[0]);
+        Vec3Row("u2", scene.uBasis[1]);
+        Vec3Row("u3", scene.uBasis[2]);
+        Vec3Row("b (coords)", scene.b);
         ImGui::EndTable();
     }
 }
 
-void ShowMatrixLab(const UiState& state) {
+void MatricesSection(const ui::FrameContext& frame) {
+    if (!ImGui::CollapsingHeader("Matrices (row view of column-major)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+    ImGui::Text("sceneScale: %.4f  aspect: %.4f", frame.sceneScale, frame.aspect);
+    Mat4Table("ModelView", frame.modelView);
+    Mat4Table("Projection", frame.projection);
+}
+
+void PipelineSection(const app::SceneGeometry& scene, const ui::FrameContext& frame) {
+    if (!ImGui::CollapsingHeader("Pipeline (world -> view -> clip -> ndc -> screen)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+
+    static int pointIndex = 0;
+    static const char* pointNames[] = {"v1", "v2", "v3", "u1", "u2", "u3", "w"};
+    ImGui::Combo("World point", &pointIndex, pointNames, IM_ARRAYSIZE(pointNames));
+
+    // Build the point array from scene geometry
+    const std::array<Vec3, 7> points = {
+        scene.vBasis[0], scene.vBasis[1], scene.vBasis[2],
+        scene.uBasis[0], scene.uBasis[1], scene.uBasis[2],
+        scene.w
+    };
+
+    const Vec3 world = points[pointIndex];
+    const Vec4 viewCoord = frame.modelView * Vec4(world, 1.f);
+    const Vec4 clip = frame.projection * viewCoord;
+    const bool validW = std::abs(clip.w) > 1e-6f;
+    const Vec3 ndc = validW ? Vec3(clip) / clip.w : Vec3(0.f);
+    const float screenX = validW ? (ndc.x + 1.f) * 0.5f * static_cast<float>(frame.windowW) : -99999.f;
+    const float screenY = validW ? (1.f - (ndc.y + 1.f) * 0.5f) * static_cast<float>(frame.windowH) : -99999.f;
+    const bool insideClip = validW &&
+                            std::abs(clip.x) <= clip.w &&
+                            std::abs(clip.y) <= clip.w &&
+                            std::abs(clip.z) <= clip.w;
+
+    if (ImGui::BeginTable("##pipeline", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableSetupColumn("stage");
+        ImGui::TableSetupColumn("x");
+        ImGui::TableSetupColumn("y");
+        ImGui::TableSetupColumn("z");
+        ImGui::TableSetupColumn("w");
+        ImGui::TableHeadersRow();
+
+        Vec3Row("world", world);
+        Vec4Row("view", viewCoord);
+        Vec4Row("clip", clip);
+        Vec3Row("ndc", ndc);
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("screen");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.1f", screenX);
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("%.1f", screenY);
+        ImGui::TableSetColumnIndex(3);
+        ImGui::TextUnformatted("-");
+        ImGui::TableSetColumnIndex(4);
+        ImGui::TextUnformatted("-");
+        ImGui::EndTable();
+    }
+
+    ImGui::Text("clip test: %s", insideClip ? "inside" : "outside");
+}
+
+} // namespace
+
+namespace ui {
+
+void ShowMatrixLab(const app::TransformParams& transform,
+                   const app::ViewParams& view,
+                   const app::SceneGeometry& scene,
+                   const FrameContext& frame) {
     ImGui::Begin("Matrix Lab");
 
-    if (ImGui::CollapsingHeader("Controls and Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextUnformatted("A/D: focal length  W/S: distance  Arrows: yaw/pitch  Q/E: FOV");
-        ImGui::Text("ws: %.3f", state.ws);
-        ImGui::Text("yaw: %.3f", state.yaw);
-        ImGui::Text("pitch: %.3f", state.pitch);
-        ImGui::Text("fov: %.3f", state.fovDeg);
-        ImGui::Text("f: %.3f", state.f);
-    }
-
-    if (ImGui::CollapsingHeader("Basis and Coordinates", ImGuiTreeNodeFlags_DefaultOpen)) {
-        std::array<std::pair<const char*, Vec3>, 7> vRows = {{
-            {"v1", state.v1}, {"v2", state.v2}, {"v3", state.v3},
-            {"a (coords)", state.a}, {"w (world)", state.w},
-            {"u1", state.u1}, {"u2", state.u2}
-        }};
-        ImGuiVec3Table("v-basis + a, w", vRows);
-
-        std::array<std::pair<const char*, Vec3>, 7> uRows = {{
-            {"u1", state.u1}, {"u2", state.u2}, {"u3", state.u3},
-            {"b (coords)", state.b}, {"v1", state.v1},
-            {"v2", state.v2}, {"v3", state.v3}
-        }};
-        ImGuiVec3Table("u-basis + b", uRows);
-    }
-
-    if (ImGui::CollapsingHeader("Matrices (row view of column-major)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("sceneScale: %.4f  aspect: %.4f", state.sceneScale, state.aspect);
-        ImGuiMat4Table("MV_base = T * Rx * Ry", state.MV_base);
-        ImGuiMat4Table("MV_vectors = MV_base * S", state.MV_vectors);
-        ImGuiMat4Table("P (perspective)", state.P);
-    }
-
-    if (ImGui::CollapsingHeader("Pipeline (world -> view -> clip -> ndc -> screen)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        static int pointIndex = 0;
-        static const char* pointNames[] = {"v1", "v2", "v3", "u1", "u2", "u3", "w"};
-        ImGui::Combo("World point", &pointIndex, pointNames, IM_ARRAYSIZE(pointNames));
-
-        const Vec3 world = state.tipVecs[pointIndex];
-        const Vec4 view = state.MV_vectors * Vec4(world, 1.f);
-        const Vec4 clip = state.P * view;
-        const bool validW = std::abs(clip.w) > 1e-6f;
-        const Vec3 ndc = validW ? Vec3(clip) / clip.w : Vec3(0.f);
-        const sf::Vector2f screen = validW
-            ? sf::Vector2f{
-                (ndc.x + 1.f) * 0.5f * state.windowW,
-                (1.f - (ndc.y + 1.f) * 0.5f) * state.windowH}
-            : sf::Vector2f{-99999.f, -99999.f};
-        const bool insideClip = validW &&
-                                std::abs(clip.x) <= clip.w &&
-                                std::abs(clip.y) <= clip.w &&
-                                std::abs(clip.z) <= clip.w;
-
-        if (ImGui::BeginTable("##pipeline", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
-            ImGui::TableSetupColumn("stage");
-            ImGui::TableSetupColumn("x");
-            ImGui::TableSetupColumn("y");
-            ImGui::TableSetupColumn("z");
-            ImGui::TableSetupColumn("w");
-            ImGui::TableHeadersRow();
-            ImGuiVec3Row("world", world);
-            ImGuiVec4Row("view", view);
-            ImGuiVec4Row("clip", clip);
-            ImGuiVec3Row("ndc", ndc);
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::TextUnformatted("screen");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%.1f", screen.x);
-            ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%.1f", screen.y);
-            ImGui::TableSetColumnIndex(3);
-            ImGui::TextUnformatted("-");
-            ImGui::TableSetColumnIndex(4);
-            ImGui::TextUnformatted("-");
-            ImGui::EndTable();
-        }
-
-        ImGui::Text("clip test: %s", insideClip ? "inside" : "outside");
-    }
+    ControlsSection(transform, view);
+    BasisSection(scene);
+    MatricesSection(frame);
+    PipelineSection(scene, frame);
 
     ImGui::End();
 }
+
+} // namespace ui
