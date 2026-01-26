@@ -27,3 +27,7 @@ compile_commands.json
 
 # ImGui config (runtime generated)
 imgui.ini
+# Legacy files in root
+main.cpp
+ui.cpp
+ui.h
