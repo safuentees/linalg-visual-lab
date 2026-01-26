@@ -328,12 +328,12 @@ namespace {
 
         return data;
     }
-    Vec3 MapMouseToArcballVec(int mouseX, int mouseY, unsigned int windowW, unsigned int windowH) {
+    Vec3 MapMouseToArcballVec(const int mouseX, const int mouseY, const unsigned int windowW, const unsigned int windowH) {
         // mouseX = 1080 => mouseX / 1080 => 0.f to 1.0f
         // 1.0f * 2 - 1 => [-1, 1]
-        float x { static_cast<float>(mouseX) / static_cast<float>(windowW) * 2 - 1 };
-        float y { static_cast<float>(mouseY) / static_cast<float>(windowH) * 2 - 1 };
-        float z {};
+        const float x { static_cast<float>(mouseX) / static_cast<float>(windowW) * 2 - 1 };
+        const float y { - (static_cast<float>(mouseY) / static_cast<float>(windowH) * 2 - 1 ) };
+        constexpr float z {};
         const auto len = sqrt(x*x + y*y);
 
         Vec3 c = { x, y, z };
@@ -398,7 +398,7 @@ int App::Run() {
         const float dt = clock_.restart().asSeconds();
         ImGui::SFML::Update(window_, sf::seconds(dt));
 
-        ProcessEvents();
+        ProcessEvents(dt);
         Update(dt);
         Render();
     }
@@ -407,7 +407,7 @@ int App::Run() {
     return 0;
 }
 
-void App::ProcessEvents() {
+void App::ProcessEvents(float dt) {
     while (auto ev = window_.pollEvent()) { // returns pointer
         ImGui::SFML::ProcessEvent(window_, *ev);
         if (ev->is<sf::Event::Closed>()) {
@@ -424,9 +424,17 @@ void App::ProcessEvents() {
             if (mouse->button == sf::Mouse::Button::Left) {
                 const auto pos = MapMouseToArcballVec(mouse->position.x, mouse->position.y, windowW_, windowH_);
                 scene_.p1 = pos;
+                scene_.angular_speed = 0.f;
+                scene_.last_angle = 0.f;  // ← Add this!
                 scene_.isDragging = true;
-                printf("%f, %f, %f\n",pos.x, pos.y, pos.z);
             }
+        }
+        // 0.009 = 0.3
+        // 1 = 0.3 / 0.009
+        if (const auto* mouse = ev->getIf<sf::Event::MouseButtonReleased>()) {
+            scene_.isDragging = false;
+            scene_.angular_speed = scene_.last_angle / dt; // per frame speed
+            printf("%f, %f, %f \n",scene_.last_angle, dt, scene_.angular_speed);
         }
         if (const auto* mouse = ev->getIf<sf::Event::MouseMoved>(); mouse && scene_.isDragging) {
             auto p2 = MapMouseToArcballVec(mouse->position.x, mouse->position.y, windowW_, windowH_);
@@ -437,9 +445,11 @@ void App::ProcessEvents() {
                 axis = axis / axisLen;  // Normalize the axis
 
                 float dotVal = glm::clamp(glm::dot(scene_.p1, p2), -1.0f, 1.0f);
-                float angle = acos(dotVal);
+                const float angle = acos(dotVal);
                 Mat4 arc_ball = glm::rotate(Mat4(1.f), angle, axis);
                 scene_.arcBall_t = arc_ball * scene_.arcBall_t;
+                scene_.last_axis = axis;
+                scene_.last_angle = angle;
             }
             scene_.p1 = p2;
         }
@@ -529,6 +539,12 @@ void App::UpdateControls(float dt) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num9) ||
         sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad9)) {
         transform_.axisAngle -= controls_.turnSpeed * dt;
+    }
+    if (!scene_.isDragging && scene_.angular_speed > 0.0001f) {
+        float frame_angle = scene_.angular_speed * dt;
+        Mat4 rot = glm::rotate(Mat4(1.f), frame_angle, scene_.last_axis);
+        scene_.arcBall_t = rot * scene_.arcBall_t;
+        scene_.angular_speed *= 0.9975f;  // Friction - slows down
     }
 }
 

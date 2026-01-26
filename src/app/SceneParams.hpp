@@ -37,6 +37,13 @@ struct SceneGeometry {
     Vec3 originWorld{};
     Vec3 p1{};
     Mat4 arcBall_t{1.f};
+    Vec3 last_axis{};
+    float last_angle{};
+    float dt{};
+    float beg_dt{};
+    float angular_speed{};
+    float end_dt{};
+
     bool isDragging{false};
 };
 
