@@ -1,0 +1,29 @@
+# Build directories
+cmake-build-*/
+build/
+
+# IDE settings
+.idea/
+.vscode/
+*.xcodeproj/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# macOS
+.DS_Store
+
+# Compiled binaries
+*.o
+*.a
+*.so
+*.dylib
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+
+# ImGui config (runtime generated)
+imgui.ini
