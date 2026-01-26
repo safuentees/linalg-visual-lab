@@ -14,7 +14,7 @@ public:
     int Run();
 
 private:
-    void ProcessEvents();
+    void ProcessEvents(float dt);
     void Update(float dt);
     void Render();
     void UpdateControls(float dt);
