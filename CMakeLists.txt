@@ -43,6 +43,15 @@ set(IMGUI_SFML_FIND_SFML OFF CACHE BOOL "Disable SFML find in ImGui-SFML" FORCE)
 
 FetchContent_MakeAvailable(imgui_sfml)
 
+# Google Test for unit testing
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.14.0
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 add_executable(projection_3d_2d
         src/main.cpp
         src/ui/MatrixLabUI.cpp
@@ -57,7 +66,9 @@ add_executable(projection_3d_2d
         src/math/Camera.hpp
         src/math/Basis.cpp
         src/math/Basis.hpp
-        src/math/Types.hpp)
+        src/math/Types.hpp
+        src/math/Quaternion.h
+        src/math/Quaternion.cpp)
 
 target_include_directories(projection_3d_2d
         PRIVATE
@@ -74,3 +85,24 @@ target_link_libraries(projection_3d_2d
 
 # On macOS you might need to link OpenGL:
 target_link_libraries(projection_3d_2d PRIVATE "-framework OpenGL")
+
+# Test executable
+enable_testing()
+
+add_executable(quaternion_tests
+        tests/QuaternionTest.cpp
+        src/math/Quaternion.cpp
+)
+
+target_include_directories(quaternion_tests
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(quaternion_tests
+        PRIVATE
+        GTest::gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(quaternion_tests)
