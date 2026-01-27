@@ -2,7 +2,10 @@
 	"InstallScripts" : 
 	[
 		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/cmake_install.cmake",
-		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/cmake_install.cmake"
+		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-build/cmake_install.cmake",
+		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/googletest-build/cmake_install.cmake",
+		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/googletest-build/googlemock/cmake_install.cmake",
+		"/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/googletest-build/googletest/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

@@ -17,6 +17,8 @@
 #include "render/Projection.hpp"
 #include "ui/MatrixLabUI.hpp"
 
+#include "math/Quaternion.h"
+
 namespace {
     sf::RenderWindow CreateWindow(unsigned int& outW, unsigned int& outH) {
         sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
@@ -108,6 +110,10 @@ namespace {
         return R;
     }
 
+    Mat4 BuildAxisRotationQuat(const Vec3& axis, const float theta) {
+        const math::Quat q = math::fromAxisAngle(axis, theta);
+        return math::quatToMat4(q);
+    }
 
     sf::VertexArray BuildWireframe(const render::CubeMesh& cube_,
                                    const Mat4& P,
@@ -144,13 +150,7 @@ namespace {
                                      const Mat4& MV_plane,
                                      float axisAngle) {
         sf::VertexArray vecLines(sf::PrimitiveType::Lines);
-        // AddVectorLine(vecLines, {1,0,0}, P, MV_plane, windowW_, windowH_, sf::Color::Red);
-        // AddVectorLine(vecLines, {0,1,0}, P, MV_plane, windowW_, windowH_, sf::Color::Green);
-        // AddVectorLine(vecLines, {0,0,1}, P, MV_plane, windowW_, windowH_, sf::Color::Blue);
 
-        // AddVectorLine(vecLines, uBasis[0], P, MV_cube, windowW_, windowH_, sf::Color(255, 140, 140));
-        // AddVectorLine(vecLines, uBasis[1], P, MV_cube, windowW_, windowH_, sf::Color(140, 255, 140));
-        // AddVectorLine(vecLines, uBasis[2], P, MV_cube, windowW_, windowH_, sf::Color(140, 140, 255));
         const auto m_w = w_ / glm::length(w_);
 
         constexpr Vec3 o = {0, 0, 0};
@@ -328,6 +328,7 @@ namespace {
 
         return data;
     }
+
     Vec3 MapMouseToArcballVec(const int mouseX, const int mouseY, const unsigned int windowW, const unsigned int windowH) {
         // mouseX = 1080 => mouseX / 1080 => 0.f to 1.0f
         // 1.0f * 2 - 1 => [-1, 1]
@@ -348,6 +349,8 @@ namespace {
 
         return c;
     }
+
+
 } // namespace
 
 namespace app {

@@ -3,7 +3,7 @@
 # No other meaning or use of this file is supported.
 
 method=git
-command=/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/fc-tmp/imgui_sfml/imgui_sfml-gitclone.cmake
+command=/Applications/CMake.app/Contents/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/CMakeFiles/fc-tmp/imgui_sfml/imgui_sfml-gitclone.cmake
 source_dir=/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps/imgui_sfml-src
 work_dir=/Users/santiagofuentes/CLionProjects/projection_3d_2d/cmake-build-debug2/_deps
 repository=https://github.com/SFML/imgui-sfml.git

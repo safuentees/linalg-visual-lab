@@ -102,6 +102,7 @@ target_include_directories(quaternion_tests
 target_link_libraries(quaternion_tests
         PRIVATE
         GTest::gtest_main
+        glm::glm
 )
 
 include(GoogleTest)
