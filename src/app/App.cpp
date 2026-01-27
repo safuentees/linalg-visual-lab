@@ -479,10 +479,10 @@ void App::UpdateControls(float dt) {
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
-        transform_.distance -= controls_.turnSpeed * dt;
+        transform_.distance += controls_.turnSpeed * dt;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-        transform_.distance += controls_.turnSpeed * dt;
+        transform_.distance -= controls_.turnSpeed * dt;
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
@@ -572,12 +572,16 @@ void App::Render() {
     Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0.f, transform_.yTrans, -transform_.distance));
     MV_plane = view * MV_plane;
 
+    // Local rotation (pitch, yaw, arcball, axis) composed at origin
+    Mat4 rotation = Mat4(1.f);
+    rotation = glm::rotate(rotation, transform_.pitch, Vec3(1.f, 0.f, 0.f));
+    rotation = glm::rotate(rotation, transform_.yaw, Vec3(0.f, 1.f, 0.f));
+    rotation = rotation * scene_.arcBall_t;
+    rotation = BuildAxisRotationQuat(scene_.w, transform_.axisAngle) * rotation;
+
+    // T * R: rotate at origin, then translate into position
     Mat4 modelCube = glm::translate(Mat4(1.f), Vec3(0.f, transform_.yTrans, -transform_.distance));
-    modelCube = glm::rotate(modelCube, transform_.pitch, Vec3(1.f, 0.f, 0.f));
-    modelCube = glm::rotate(modelCube, transform_.yaw, Vec3(0.f, 1.f, 0.f));
-    modelCube = modelCube * scene_.arcBall_t;
-    Mat4 axisRot = BuildAxisRotation(scene_.w, transform_.axisAngle, nullptr, nullptr);
-    modelCube = axisRot * modelCube;
+    modelCube = modelCube * rotation;
 
     Mat4 MV_cube = view * modelCube;
 
