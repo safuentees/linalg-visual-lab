@@ -68,7 +68,11 @@ add_executable(projection_3d_2d
         src/math/Basis.hpp
         src/math/Types.hpp
         src/math/Quaternion.h
-        src/math/Quaternion.cpp)
+        src/math/Quaternion.cpp
+        src/math/Shadow.cpp
+        src/math/Shadow.h
+        src/math/Lighting.cpp
+        src/math/Lighting.h)
 
 target_include_directories(projection_3d_2d
         PRIVATE

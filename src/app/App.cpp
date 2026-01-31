@@ -14,10 +14,12 @@
 #include <imgui.h>
 
 #include "math/Basis.hpp"
+#include "math/Lighting.h"
 #include "render/Projection.hpp"
 #include "ui/MatrixLabUI.hpp"
 
 #include "math/Quaternion.h"
+#include "math/Shadow.h"
 
 namespace {
     sf::RenderWindow CreateWindow(unsigned int& outW, unsigned int& outH) {
@@ -193,8 +195,11 @@ namespace {
     sf::VertexArray BuildFaces(const render::CubeMesh& cube_,
                                const Mat4& P,
                                const Mat4& MV_cube,
-                               unsigned int windowW_,
-                               unsigned int windowH_) {
+                               const Mat4& model,
+                               const Vec3& lightPos,
+                               const Vec3& cameraPos,
+                               const unsigned int windowW_,
+                               const unsigned int windowH_) {
         struct FaceDraw {
             int faceIndex;
             float avgZ;
@@ -223,10 +228,20 @@ namespace {
         for (const auto& item : order) {
             const auto& quad = cube_.faces[item.faceIndex];
 
-            sf::Color col = sf::Color(80 + item.faceIndex * 20, 140 + item.faceIndex * 20, 220);
+            Vec3 normal = math::faceNormal(cube_.vertices, quad, model);
+            Vec3 center = (cube_.vertices[quad[0]] + cube_.vertices[quad[1]] + cube_.vertices[quad[2]] + cube_.vertices[quad[3]]) * 0.25f;
+            Vec3 worldCenter = Vec3(model * Vec4(center, 1.0f));
+            Vec3 l = glm::normalize(lightPos - worldCenter); // from world center to light pos
+            Vec3 v = glm::normalize(cameraPos - worldCenter); // from world center to camera pos
+
+            float brightness = math::phong(normal, l, v, 0.1f,
+              0.7f, 0.5f, 32.f, 1.f, 1.f, 1.f);
 
             std::size_t base = faces.getVertexCount();
             faces.resize(base + 6);
+
+            auto c = static_cast<uint8_t>(glm::clamp(brightness, 0.f,1.f) * 255.f);
+            sf::Color col = sf::Color(c, c, c);
 
             static constexpr int triPattern[6] = {0, 1, 2, 0, 2, 3};
             for (int k = 0; k < 6; ++k) {
@@ -384,6 +399,8 @@ App::App()
 
     scene_.b = math::CoordsInBasis(scene_.uBasis[0], scene_.uBasis[1], scene_.uBasis[2], scene_.w);
 
+    scene_.lightPos = {2.f, 4.f, 1.f};
+
     scene_.originWorld = {0.f, 0.f, 0.f};
 
     float size = 10.f;
@@ -512,7 +529,7 @@ void App::Render() {
     const float sceneScale = ComputeSceneScale();
     Mat4 view = camera_.ViewMatrix(view_.useCustomLookAt);
 
-    Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0.f, transform_.yTrans, -transform_.distance));
+    Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0.f, 0.f, -transform_.distance));
     MV_plane = view * MV_plane;
 
     // Local rotation (pitch, yaw, arcball, axis) composed at origin
@@ -522,9 +539,12 @@ void App::Render() {
     rotation = rotation * scene_.arcBall_t;
     rotation = BuildAxisRotationQuat(scene_.w, transform_.axisAngle) * rotation;
 
+    Mat4 shadow = math::shadowFrom(scene_.lightPos);
+
     // T * R: rotate at origin, then translate into position
     Mat4 modelCube = glm::translate(Mat4(1.f), Vec3(0.f, transform_.yTrans, -transform_.distance));
     modelCube = modelCube * rotation;
+    Mat4 MV_shadow = view * shadow * modelCube;
 
     Mat4 MV_cube = view * modelCube;
 
@@ -546,17 +566,31 @@ void App::Render() {
                                                 transform_.axisAngle);
 
     std::array<Vec3, 7> tipVecs = {scene_.vBasis[0], scene_.vBasis[1], scene_.vBasis[2]};
+
     sf::VertexArray tips = BuildTips(tipVecs, P, MV_plane, windowW_, windowH_);
 
     sf::Vertex origin(render::ToScreenH(scene_.originWorld, P, MV_plane, windowW_, windowH_));
 
-    sf::VertexArray faces = BuildFaces(cube_, P, MV_cube, windowW_, windowH_);
+    sf::VertexArray faces = BuildFaces(cube_, P, MV_cube, modelCube, {1, 1, 1}, camera_.Position(), windowW_, windowH_);
+
+    sf::VertexArray shadow_faces(sf::PrimitiveType::Triangles);
+    {
+        static constexpr int tri[6] = {0, 1, 2, 0, 2, 3};
+        for (const auto& quad : cube_.faces) {
+            std::size_t base = shadow_faces.getVertexCount();
+            shadow_faces.resize(base + 6);
+            for (int k = 0; k < 6; ++k) {
+                int vidx = quad[tri[k]];
+                sf::Vector2f p = render::ToScreenH(cube_.vertices[vidx], P, MV_shadow, windowW_, windowH_);
+                shadow_faces[base + k].position = p;
+                shadow_faces[base + k].color = sf::Color(30, 30, 30);
+            }
+        }
+    }
 
     sf::VertexArray basis = BuildGridLines(scene_.grid, P, MV_plane, windowW_, windowH_);
 
     auto [pairs, points_grid, lines_grid] = BuildGridDrawData(scene_.grid, P, MV_plane, windowW_, windowH_);
-
-
 
     ui::FrameContext frame{
         .modelView = MV_plane,
@@ -576,8 +610,10 @@ void App::Render() {
 
     window_.draw(points_grid);
     window_.draw(lines_grid);
+    window_.draw(shadow_faces);
+
     window_.draw(faces);
-    window_.draw(wire);
+    // window_.draw(wire);
     window_.draw(vecLines);
     window_.draw(tips);
     window_.draw(&origin, 1, sf::PrimitiveType::Points);
