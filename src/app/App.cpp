@@ -471,83 +471,26 @@ void App::Update(float dt) {
 }
 
 void App::UpdateControls(float dt) {
+    // Camera orbit — WASD
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
-        view_.focalLength -= controls_.focalSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
-        view_.focalLength += controls_.focalSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
-        transform_.distance += controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-        transform_.distance -= controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
-        transform_.yaw -= controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-        transform_.yaw += controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-        transform_.pitch -= controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-        transform_.pitch += controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q)) {
-        view_.fovDeg -= controls_.focalSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::E)) {
-        view_.fovDeg += controls_.focalSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)) {
-        transform_.yTrans -= controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)) {
-        transform_.yTrans += controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::F)) {
-        transform_.pitchPlane -= controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::G)) {
-        transform_.pitchPlane += controls_.turnSpeed * dt;
-    }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
         camera_.yaw -= controls_.turnSpeed * dt;
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
         camera_.yaw += controls_.turnSpeed * dt;
     }
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
-        camera_.pitch -= controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
         camera_.pitch += controls_.turnSpeed * dt;
     }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
+        camera_.pitch -= controls_.turnSpeed * dt;
+    }
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num0) ||
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad0)) {
-        transform_.axisAngle += controls_.turnSpeed * dt;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num9) ||
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad9)) {
-        transform_.axisAngle -= controls_.turnSpeed * dt;
-    }
+    // Arcball momentum
     if (!scene_.isDragging && scene_.angular_speed > 0.0001f) {
         float frame_angle = scene_.angular_speed * dt;
         Mat4 rot = glm::rotate(Mat4(1.f), frame_angle, scene_.last_axis);
         scene_.arcBall_t = rot * scene_.arcBall_t;
-        scene_.angular_speed *= 0.9975f;  // Friction - slows down
+        scene_.angular_speed *= 0.9975f;
     }
 }
 

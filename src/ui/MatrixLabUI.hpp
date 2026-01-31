@@ -15,7 +15,7 @@ struct FrameContext {
     unsigned int windowH{};
 };
 
-void ShowMatrixLab(const app::TransformParams& transform,
+void ShowMatrixLab(app::TransformParams& transform,
                    app::ViewParams& view,
                    const app::SceneGeometry& scene,
                    const FrameContext& frame);

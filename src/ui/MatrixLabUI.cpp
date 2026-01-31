@@ -48,20 +48,48 @@ void Mat4Table(const char* label, const Mat4& m) {
     ImGui::PopID();
 }
 
-void ControlsSection(const app::TransformParams& transform, const app::ViewParams& view) {
-    if (!ImGui::CollapsingHeader("Controls and Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+void ModeTogglesSection(app::ViewParams& view) {
+    if (!ImGui::CollapsingHeader("Mode", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
-    ImGui::TextUnformatted("A/D: focal length  W/S: distance  Arrows: yaw/pitch  Q/E: FOV");
-    ImGui::Text("distance: %.3f", transform.distance);
-    ImGui::Text("yaw: %.3f", transform.yaw);
-    ImGui::Text("pitch: %.3f", transform.pitch);
-    ImGui::Text("fov: %.3f", view.fovDeg);
-    ImGui::Text("f: %.3f", view.focalLength);
+    ImGui::Checkbox("Custom LookAt", &view.useCustomLookAt);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(%s)", view.useCustomLookAt ? "yours" : "glm");
+
+    ImGui::Checkbox("Orthographic", &view.useParallelProj);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(%s)", view.useParallelProj ? "ortho" : "perspective");
+}
+
+void ObjectTransformSection(app::TransformParams& transform) {
+    if (!ImGui::CollapsingHeader("Object Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+    ImGui::SliderFloat("Distance", &transform.distance, -10.f, 10.f);
+    ImGui::SliderFloat("Yaw", &transform.yaw, -3.14159f, 3.14159f);
+    ImGui::SliderFloat("Pitch", &transform.pitch, -3.14159f, 3.14159f);
+    ImGui::SliderFloat("Y Translate", &transform.yTrans, -5.f, 5.f);
+    ImGui::SliderFloat("Axis Angle", &transform.axisAngle, -3.14159f, 3.14159f);
+    ImGui::SliderFloat("Plane Pitch", &transform.pitchPlane, -3.14159f, 3.14159f);
+    if (ImGui::Button("Reset Transform")) {
+        transform = app::TransformParams{};
+    }
+}
+
+void CameraSection(app::ViewParams& view) {
+    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+    ImGui::TextDisabled("Orbit: W/A/S/D");
+    ImGui::SliderFloat("FOV", &view.fovDeg, 5.f, 120.f);
+    ImGui::SliderFloat("Focal Length", &view.focalLength, 0.1f, 100.f);
+    if (view.useParallelProj) {
+        ImGui::SliderFloat("Ortho Size", &view.orthoSize, 0.5f, 30.f);
+    }
 }
 
 void BasisSection(const app::SceneGeometry& scene) {
-    if (!ImGui::CollapsingHeader("Basis and Coordinates", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (!ImGui::CollapsingHeader("Basis and Coordinates")) {
         return;
     }
 
@@ -94,7 +122,7 @@ void BasisSection(const app::SceneGeometry& scene) {
 }
 
 void MatricesSection(const ui::FrameContext& frame) {
-    if (!ImGui::CollapsingHeader("Matrices (row view of column-major)", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (!ImGui::CollapsingHeader("Matrices")) {
         return;
     }
     ImGui::Text("sceneScale: %.4f  aspect: %.4f", frame.sceneScale, frame.aspect);
@@ -103,7 +131,7 @@ void MatricesSection(const ui::FrameContext& frame) {
 }
 
 void PipelineSection(const app::SceneGeometry& scene, const ui::FrameContext& frame) {
-    if (!ImGui::CollapsingHeader("Pipeline (world -> view -> clip -> ndc -> screen)", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (!ImGui::CollapsingHeader("Pipeline (world -> screen)")) {
         return;
     }
 
@@ -111,7 +139,6 @@ void PipelineSection(const app::SceneGeometry& scene, const ui::FrameContext& fr
     static const char* pointNames[] = {"v1", "v2", "v3", "u1", "u2", "u3", "w"};
     ImGui::Combo("World point", &pointIndex, pointNames, IM_ARRAYSIZE(pointNames));
 
-    // Build the point array from scene geometry
     const std::array<Vec3, 7> points = {
         scene.vBasis[0], scene.vBasis[1], scene.vBasis[2],
         scene.uBasis[0], scene.uBasis[1], scene.uBasis[2],
@@ -164,25 +191,15 @@ void PipelineSection(const app::SceneGeometry& scene, const ui::FrameContext& fr
 
 namespace ui {
 
-void ShowMatrixLab(const app::TransformParams& transform,
+void ShowMatrixLab(app::TransformParams& transform,
                    app::ViewParams& view,
                    const app::SceneGeometry& scene,
                    const FrameContext& frame) {
     ImGui::Begin("Matrix Lab");
 
-    ImGui::Checkbox("Custom LookAt", &view.useCustomLookAt);
-    ImGui::SameLine();
-    ImGui::Text("(%s)", view.useCustomLookAt ? "yours" : "glm");
-
-    ImGui::Checkbox("Orthographic", &view.useParallelProj);
-    ImGui::SameLine();
-    ImGui::Text("(%s)", view.useParallelProj ? "ortho" : "perspective");
-    if (view.useParallelProj) {
-        ImGui::SliderFloat("orthoSize", &view.orthoSize, 0.5f, 30.f);
-    }
-    ImGui::Separator();
-
-    ControlsSection(transform, view);
+    ModeTogglesSection(view);
+    ObjectTransformSection(transform);
+    CameraSection(view);
     BasisSection(scene);
     MatricesSection(frame);
     PipelineSection(scene, frame);
