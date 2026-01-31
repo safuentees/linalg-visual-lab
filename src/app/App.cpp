@@ -567,7 +567,7 @@ float App::ComputeSceneScale() const {
 
 void App::Render() {
     const float sceneScale = ComputeSceneScale();
-    Mat4 view = camera_.ViewMatrix();
+    Mat4 view = camera_.ViewMatrix(view_.useCustomLookAt);
 
     Mat4 MV_plane = glm::translate(Mat4(1.f), Vec3(0.f, transform_.yTrans, -transform_.distance));
     MV_plane = view * MV_plane;
@@ -586,7 +586,9 @@ void App::Render() {
     Mat4 MV_cube = view * modelCube;
 
     const float aspect = static_cast<float>(windowW_) / static_cast<float>(windowH_);
-    Mat4 P = glm::perspective(glm::radians(view_.fovDeg), aspect, 0.01f, 100.f);
+    Mat4 P = view_.useParallelProj
+        ? math::orthographic(view_.orthoSize, aspect, 0.01f, 100.f)
+        : glm::perspective(glm::radians(view_.fovDeg), aspect, 0.01f, 100.f);
 
     sf::VertexArray wire = BuildWireframe(cube_, P, MV_cube, windowW_, windowH_);
 
@@ -632,9 +634,9 @@ void App::Render() {
     window_.draw(points_grid);
     window_.draw(lines_grid);
     window_.draw(faces);
-    // window_.draw(wire);
+    window_.draw(wire);
     window_.draw(vecLines);
-    // window_.draw(tips);
+    window_.draw(tips);
     window_.draw(&origin, 1, sf::PrimitiveType::Points);
     ImGui::SFML::Render(window_);
     window_.display();

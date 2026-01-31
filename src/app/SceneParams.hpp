@@ -20,6 +20,9 @@ struct TransformParams {
 struct ViewParams {
     float fovDeg = 40.f;
     float focalLength = 1.f;
+    bool useCustomLookAt = false;
+    bool useParallelProj = false;
+    float orthoSize = 5.f;
 };
 
 // Input sensitivity (rarely changed)

@@ -165,10 +165,22 @@ void PipelineSection(const app::SceneGeometry& scene, const ui::FrameContext& fr
 namespace ui {
 
 void ShowMatrixLab(const app::TransformParams& transform,
-                   const app::ViewParams& view,
+                   app::ViewParams& view,
                    const app::SceneGeometry& scene,
                    const FrameContext& frame) {
     ImGui::Begin("Matrix Lab");
+
+    ImGui::Checkbox("Custom LookAt", &view.useCustomLookAt);
+    ImGui::SameLine();
+    ImGui::Text("(%s)", view.useCustomLookAt ? "yours" : "glm");
+
+    ImGui::Checkbox("Orthographic", &view.useParallelProj);
+    ImGui::SameLine();
+    ImGui::Text("(%s)", view.useParallelProj ? "ortho" : "perspective");
+    if (view.useParallelProj) {
+        ImGui::SliderFloat("orthoSize", &view.orthoSize, 0.5f, 30.f);
+    }
+    ImGui::Separator();
 
     ControlsSection(transform, view);
     BasisSection(scene);
