@@ -65,12 +65,12 @@ void ObjectTransformSection(app::TransformParams& transform) {
     if (!ImGui::CollapsingHeader("Object Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
-    ImGui::SliderFloat("Distance", &transform.distance, -10.f, 10.f);
-    ImGui::SliderFloat("Yaw", &transform.yaw, -3.14159f, 3.14159f);
-    ImGui::SliderFloat("Pitch", &transform.pitch, -3.14159f, 3.14159f);
-    ImGui::SliderFloat("Y Translate", &transform.yTrans, -5.f, 5.f);
-    ImGui::SliderFloat("Axis Angle", &transform.axisAngle, -3.14159f, 3.14159f);
-    ImGui::SliderFloat("Plane Pitch", &transform.pitchPlane, -3.14159f, 3.14159f);
+    ImGui::DragFloat("Distance", &transform.distance, 0.05f);
+    ImGui::DragFloat("Yaw", &transform.yaw, 0.01f);
+    ImGui::DragFloat("Pitch", &transform.pitch, 0.01f);
+    ImGui::DragFloat("Y Translate", &transform.yTrans, 0.05f);
+    ImGui::DragFloat("Axis Angle", &transform.axisAngle, 0.01f);
+    ImGui::DragFloat("Plane Pitch", &transform.pitchPlane, 0.01f);
     if (ImGui::Button("Reset Transform")) {
         transform = app::TransformParams{};
     }
@@ -81,10 +81,10 @@ void CameraSection(app::ViewParams& view) {
         return;
     }
     ImGui::TextDisabled("Orbit: W/A/S/D");
-    ImGui::SliderFloat("FOV", &view.fovDeg, 5.f, 120.f);
-    ImGui::SliderFloat("Focal Length", &view.focalLength, 0.1f, 100.f);
+    ImGui::DragFloat("FOV", &view.fovDeg, 0.5f);
+    ImGui::DragFloat("Focal Length", &view.focalLength, 0.1f);
     if (view.useParallelProj) {
-        ImGui::SliderFloat("Ortho Size", &view.orthoSize, 0.5f, 30.f);
+        ImGui::DragFloat("Ortho Size", &view.orthoSize, 0.1f);
     }
 }
 
@@ -196,6 +196,7 @@ void ShowMatrixLab(app::TransformParams& transform,
                    const app::SceneGeometry& scene,
                    const FrameContext& frame) {
     ImGui::Begin("Matrix Lab");
+    ImGui::PushItemWidth(100.f);
 
     ModeTogglesSection(view);
     ObjectTransformSection(transform);
@@ -204,6 +205,7 @@ void ShowMatrixLab(app::TransformParams& transform,
     MatricesSection(frame);
     PipelineSection(scene, frame);
 
+    ImGui::PopItemWidth();
     ImGui::End();
 }
 

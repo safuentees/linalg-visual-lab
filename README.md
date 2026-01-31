@@ -1,23 +1,27 @@
 # Linear Algebra Visual Lab
 
-An interactive 3D-to-2D projection visualization tool for exploring linear algebra concepts. Built with C++20, SFML, and ImGui.
-
+A real-time 3D visualization tool for exploring linear algebra and computer graphics concepts from the ground up. Implements core rendering algorithms — projection, lighting, shadows — as a software renderer in C++20 with SFML and ImGui.
 
 ## Features
 
-- **Real-time 3D Projection** - Visualize the complete graphics pipeline: World → View → Clip → NDC → Screen coordinates
-- **Arcball Rotation** - Intuitive mouse-based rotation with inertia physics
-- **Orbit Camera** - Spherical coordinate camera system with yaw/pitch controls
-- **Matrix Visualization** - ImGui debug windows showing live matrix transformations
-- **Basis Vector Display** - Visualize coordinate system transformations
-- **Painter's Algorithm** - Depth-sorted face rendering for correct occlusion
+- **Software Rendering Pipeline** — World → View → Clip → NDC → Screen coordinate transformations with live matrix inspection
+- **Custom LookAt Matrix** — Manual view matrix construction from forward/right/up vectors, toggleable against `glm::lookAt`
+- **Orthographic & Perspective Projection** — Switchable projection modes with configurable parameters
+- **Phong Flat Shading** — Per-face lighting with ambient, diffuse, and specular components
+- **Shadow Projection** — Planar shadow casting using light-source projection matrices
+- **Arcball Rotation** — Mouse-driven trackball rotation with momentum/inertia
+- **Quaternion Axis Rotation** — Arbitrary-axis rotation via quaternion-to-matrix conversion
+- **Orbit Camera** — Spherical coordinate camera with WASD controls
+- **ImGui Controls** — Real-time parameter tuning via sliders and toggles
 
 ## Tech Stack
 
-- **C++20** - Modern C++ features
-- **SFML 3** - Window management and 2D rendering
-- **GLM** - Mathematics library (vectors, matrices, transformations)
-- **ImGui** - Immediate mode debug UI
+| Library | Role |
+|---------|------|
+| **C++20** | Language standard |
+| **SFML 3** | Windowing and 2D rendering |
+| **GLM** | Vector/matrix math |
+| **ImGui** | Immediate-mode debug UI |
 
 ## Building
 
@@ -26,18 +30,13 @@ An interactive 3D-to-2D projection visualization tool for exploring linear algeb
 - CMake 4.1+
 - Ninja build system
 - C++20 compatible compiler
-- SFML 3 (via Homebrew on macOS: `brew install sfml`)
+- SFML 3 (macOS: `brew install sfml`)
 
-### Build Commands
+### Commands
 
 ```bash
-# Configure
 cmake --preset debug
-
-# Build
 cmake --build cmake-build-debug2
-
-# Run
 ./cmake-build-debug2/projection_3d_2d
 ```
 
@@ -46,35 +45,29 @@ cmake --build cmake-build-debug2
 | Input | Action |
 |-------|--------|
 | **Mouse Drag** | Arcball rotation |
-| **Mouse Release** | Inertia spin |
-| W / S | Zoom in/out |
-| A / D | Adjust focal length |
-| Q / E | Adjust FOV |
-| Arrow Keys | Yaw/Pitch rotation |
-| P / O | Camera orbit yaw |
-| L / K | Camera orbit pitch |
-| Z / X | Y-axis translation |
-| 9 / 0 | Axis-angle rotation |
-| Esc | Exit |
+| **W / A / S / D** | Camera orbit |
+| **ImGui Panel** | Object transform, FOV, projection mode, lighting parameters |
+| **Esc** | Exit |
 
 ## Project Structure
 
 ```
 src/
-├── app/           # Application core (window, input, game loop)
-├── math/          # Camera, basis transformations, type aliases
-├── render/        # Projection pipeline, mesh data
-└── ui/            # ImGui debug interface
+├── app/           Application core — window, input, game loop, rendering
+├── math/          Camera, basis transforms, quaternions, lighting, shadows
+├── render/        Projection pipeline, mesh data
+└── ui/            ImGui debug interface
 ```
 
-## Learning Goals
+## Implemented Concepts
 
-This project was built to understand:
-
-- Homogeneous coordinate systems and 4x4 transformation matrices
-- The complete 3D rendering pipeline
-- Arcball rotation using cross/dot products
-- Perspective projection and NDC conversion
+- Homogeneous coordinates and 4x4 transformation matrices
+- View matrix construction (LookAt) and the role of VUP
+- Perspective and orthographic projection matrices
+- Painter's algorithm for depth-sorted face rendering
+- Phong reflection model (ambient, diffuse, specular)
+- Planar shadow projection from point light sources
+- Arcball rotation via cross product and quaternions
 - Change of basis between coordinate systems
 
 ## License
