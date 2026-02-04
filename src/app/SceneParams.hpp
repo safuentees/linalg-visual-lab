@@ -6,6 +6,14 @@
 
 namespace app {
 
+    struct MaterialParams {
+        Vec3 color = {0.8f, 0.3f, 0.3f};
+        float ka = 0.1f;
+        float kd = 0.7f;
+        float ks = 0.5f;
+        float shininess = 32.f;
+    };
+
     // Object rotation/translation parameters
     struct TransformParams {
         float yaw = 0.f;
@@ -48,6 +56,7 @@ namespace app {
         float end_dt{};
 
         Vec3 lightPos{};
+        Vec3 lightColor{};
 
         bool isDragging{false};
     };

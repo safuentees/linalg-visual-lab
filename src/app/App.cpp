@@ -196,6 +196,8 @@ namespace {
                                const Mat4& P,
                                const Mat4& MV_cube,
                                const Mat4& model,
+                               const app::MaterialParams& material,
+                               const Vec3& lightColor,
                                const Vec3& lightPos,
                                const Vec3& cameraPos,
                                const unsigned int windowW_,
@@ -234,14 +236,17 @@ namespace {
             Vec3 l = glm::normalize(lightPos - worldCenter); // from world center to light pos
             Vec3 v = glm::normalize(cameraPos - worldCenter); // from world center to camera pos
 
-            float brightness = math::phong(normal, l, v, 0.1f,
-              0.7f, 0.5f, 32.f, 1.f, 1.f, 1.f);
+            Vec3 color = math::phong(normal, l, v, material.color, material.ka,
+              material.kd, material.ks, material.shininess, lightColor);
 
             std::size_t base = faces.getVertexCount();
             faces.resize(base + 6);
 
-            auto c = static_cast<uint8_t>(glm::clamp(brightness, 0.f,1.f) * 255.f);
-            sf::Color col = sf::Color(c, c, c);
+            sf::Color col(
+                static_cast<uint8_t>(glm::clamp(color.r, 0.f, 1.f) * 255.f),
+                static_cast<uint8_t>(glm::clamp(color.g, 0.f, 1.f) * 255.f),
+                static_cast<uint8_t>(glm::clamp(color.b, 0.f, 1.f) * 255.f)
+                );
 
             static constexpr int triPattern[6] = {0, 1, 2, 0, 2, 3};
             for (int k = 0; k < 6; ++k) {
@@ -400,6 +405,7 @@ App::App()
     scene_.b = math::CoordsInBasis(scene_.uBasis[0], scene_.uBasis[1], scene_.uBasis[2], scene_.w);
 
     scene_.lightPos = {2.f, 4.f, 1.f};
+    scene_.lightColor = {1, 1, 1};
 
     scene_.originWorld = {0.f, 0.f, 0.f};
 
@@ -571,7 +577,7 @@ void App::Render() {
 
     sf::Vertex origin(render::ToScreenH(scene_.originWorld, P, MV_plane, windowW_, windowH_));
 
-    sf::VertexArray faces = BuildFaces(cube_, P, MV_cube, modelCube, {1, 1, 1}, camera_.Position(), windowW_, windowH_);
+    sf::VertexArray faces = BuildFaces(cube_, P, MV_cube, modelCube, material_, scene_.lightColor, scene_.lightPos, camera_.Position(), windowW_, windowH_);
 
     sf::VertexArray shadow_faces(sf::PrimitiveType::Triangles);
     {

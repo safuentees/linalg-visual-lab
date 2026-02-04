@@ -19,11 +19,11 @@ namespace math {
         return glm::normalize(worldNormal);
     }
 
-    float phong(Vec3 n, Vec3 l, Vec3 v, float ka, float kd, float ks, float a, float La, float Ld, float Ls) {
-        const float Ia = ka * La;
-        const float Id = kd * glm::max(glm::dot(l, n), 0.f) * Ld;
+    Vec3 phong(const Vec3 n, const Vec3 l, const Vec3 v, Vec3 materialColor, float ka, const float kd, const float ks, const float a, Vec3 lightColor) {
+        Vec3 Ia = ka * materialColor * lightColor;
+        Vec3 Id = kd * glm::max(glm::dot(l, n), 0.f) * materialColor * lightColor;
         const Vec3 r = glm::reflect(-l, n);
-        const float Is = ks * std::pow(glm::max(glm::dot(v, r), 0.f), a)  * Ls;
+        const Vec3 Is = ks * std::pow(glm::max(glm::dot(v, r), 0.f), a)  * lightColor;
 
         return Ia + Id + Is;
     }

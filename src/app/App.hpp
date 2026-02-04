@@ -27,6 +27,7 @@ private:
     sf::Clock clock_;
 
     // Grouped state
+    MaterialParams material_;
     TransformParams transform_;
     ViewParams view_;
     ControlSettings controls_;
